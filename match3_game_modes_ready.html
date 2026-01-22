@@ -1,0 +1,2428 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Gem Blast</title>
+    <style>
+        :root {
+            --bg: #0b1020;
+            --panel: rgba(255, 255, 255, 0.08);
+            --panel2: rgba(255, 255, 255, 0.12);
+            --text: rgba(255, 255, 255, 0.92);
+            --muted: rgba(255, 255, 255, 0.68);
+            --size: 64px;
+            --gap: 8px;
+            --radius: 14px;
+            --shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+            --ease: cubic-bezier(.2, .8, .2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(1200px 700px at 20% 10%, rgba(119, 84, 255, 0.35), transparent 60%),
+                radial-gradient(900px 600px at 80% 30%, rgba(84, 212, 255, 0.25), transparent 60%),
+                radial-gradient(900px 600px at 40% 90%, rgba(255, 122, 84, 0.18), transparent 60%),
+                var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .wrap {
+            width: min(900px, 94vw);
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: var(--panel);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .title {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+        }
+
+        .title h1 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 0.2px;
+        }
+
+        .title span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .hud {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            background: var(--panel2);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            padding: 8px 10px;
+            border-radius: 999px;
+            font-size: 13px;
+            color: var(--muted);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pill b {
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+        }
+
+        :root {
+            --rainbow: linear-gradient(135deg,
+                    #ff4d4d, #ffb84d, #fff04d, #6bff7a, #4dd7ff, #4d6bff, #b84dff, #ff4dd2);
+        }
+
+
+        button {
+            appearance: none;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.10);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform .08s ease, background .2s ease;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        button:active {
+            transform: translateY(1px) scale(0.99);
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .boardShell {
+            padding: 16px 18px 16px 16px;
+            background: var(--panel);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+            overflow: visible;
+        }
+
+        .board {
+            position: relative;
+            user-select: none;
+            touch-action: manipulation;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(8, var(--size));
+            grid-template-rows: repeat(8, var(--size));
+            gap: var(--gap);
+        }
+
+        @media (max-width: 860px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+
+            :root {
+                --size: 52px;
+                --gap: 7px;
+            }
+        }
+
+        .tile {
+            position: relative;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
+            transform: translateZ(0);
+            transition: transform 140ms var(--ease), filter 140ms var(--ease), opacity 140ms var(--ease);
+            overflow: hidden;
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            cursor: pointer;
+        }
+
+        .tile::after {
+            content: "";
+            position: absolute;
+            inset: -30%;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.42), transparent 55%);
+            transform: rotate(12deg);
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
+        .tile .icon {
+            font-size: 30px;
+            filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
+        }
+
+        /* Animated gem container (drop animation uses translateY) */
+        .gem {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            place-items: center;
+            transition: transform 220ms var(--ease);
+            will-change: transform;
+        }
+
+        .tile.selected {
+            outline: 3px solid rgba(255, 255, 255, 0.70);
+            outline-offset: 2px;
+            transform: translateY(-2px) scale(1.03);
+            filter: brightness(1.08);
+        }
+
+        .tile.invalid {
+            animation: shake 180ms ease-in-out 0s 2;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-3px);
+            }
+
+            50% {
+                transform: translateX(3px);
+            }
+
+            75% {
+                transform: translateX(-2px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes bombWiggle {
+            0% {
+                transform: rotate(0deg) translateX(0);
+            }
+
+            20% {
+                transform: rotate(-2deg) translateX(-1px);
+            }
+
+            40% {
+                transform: rotate(2deg) translateX(1px);
+            }
+
+            60% {
+                transform: rotate(-2deg) translateX(-1px);
+            }
+
+            80% {
+                transform: rotate(2deg) translateX(1px);
+            }
+
+            100% {
+                transform: rotate(0deg) translateX(0);
+            }
+        }
+
+        @keyframes bombGlow {
+            0% {
+                box-shadow: 0 0 0 rgba(255, 80, 80, 0.0), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+
+            50% {
+                box-shadow: 0 0 18px rgba(255, 80, 80, 0.55), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+
+            100% {
+                box-shadow: 0 0 0 rgba(255, 80, 80, 0.0), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+        }
+
+        /* bomb "just spawned" blink */
+        @keyframes bombSpawnBlink {
+            0% {
+                filter: brightness(1.0);
+            }
+
+            20% {
+                filter: brightness(1.5);
+            }
+
+            40% {
+                filter: brightness(1.0);
+            }
+
+            60% {
+                filter: brightness(1.5);
+            }
+
+            80% {
+                filter: brightness(1.0);
+            }
+
+            100% {
+                filter: brightness(1.0);
+            }
+        }
+
+        .tile.bomb-spawn {
+            animation: bombSpawnBlink 0.7s ease-in-out 1;
+        }
+
+        /* glow */
+        @keyframes bombGlow {
+            0% {
+                box-shadow: 0 0 0 rgba(255, 80, 80, 0.0), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+
+            50% {
+                box-shadow: 0 0 18px rgba(255, 80, 80, 0.55), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+
+            100% {
+                box-shadow: 0 0 0 rgba(255, 80, 80, 0.0), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+        }
+
+        /* spawn blink */
+        @keyframes bombSpawnBlink {
+            0% {
+                filter: brightness(1.0);
+            }
+
+            20% {
+                filter: brightness(1.5);
+            }
+
+            40% {
+                filter: brightness(1.0);
+            }
+
+            60% {
+                filter: brightness(1.5);
+            }
+
+            80% {
+                filter: brightness(1.0);
+            }
+
+            100% {
+                filter: brightness(1.0);
+            }
+        }
+
+        /* IMPORTANT: define animations ONLY on combined selectors */
+        .tile.bomb-warning {
+            animation: bombGlow 0.85s ease-in-out infinite;
+        }
+
+        .tile.bomb-danger {
+            animation: bombWiggle 0.22s ease-in-out infinite;
+        }
+
+        /* When both classes are present, run both animations together */
+        .tile.bomb-warning.bomb-danger {
+            animation:
+                bombGlow 0.85s ease-in-out infinite,
+                bombWiggle 0.22s ease-in-out infinite;
+        }
+
+        /* Spawn blink alone */
+        .tile.bomb-spawn {
+            animation: bombSpawnBlink 0.7s ease-in-out 1;
+        }
+
+        /* Spawn blink + glow */
+        .tile.bomb-warning.bomb-spawn {
+            animation:
+                bombSpawnBlink 0.7s ease-in-out 1,
+                bombGlow 0.85s ease-in-out infinite;
+        }
+
+        /* Spawn blink + wiggle */
+        .tile.bomb-danger.bomb-spawn {
+            animation:
+                bombSpawnBlink 0.7s ease-in-out 1,
+                bombWiggle 0.22s ease-in-out infinite;
+        }
+
+        /* Spawn blink + glow + wiggle (all three) */
+        .tile.bomb-warning.bomb-danger.bomb-spawn {
+            animation:
+                bombSpawnBlink 0.7s ease-in-out 1,
+                bombGlow 0.85s ease-in-out infinite,
+                bombWiggle 0.22s ease-in-out infinite;
+        }
+
+
+        .tile.clearing {
+            opacity: 0;
+            transform: scale(0.6);
+        }
+
+        .badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(0, 0, 0, 0.38);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 12px;
+            line-height: 1.1;
+            pointer-events: none;
+            backdrop-filter: blur(6px);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .badge.bomb {
+            background: rgba(255, 70, 70, 0.25);
+            border-color: rgba(255, 120, 120, 0.35);
+        }
+
+        .badge.bomb.warn {
+            background: rgba(255, 170, 0, 0.22);
+            border-color: rgba(255, 200, 80, 0.40);
+            color: rgba(255, 235, 205, 0.95);
+        }
+
+        .badge.bomb.crit {
+            background: rgba(255, 60, 60, 0.28);
+            border-color: rgba(255, 120, 120, 0.55);
+            color: rgba(255, 230, 230, 0.98);
+            font-weight: 800;
+        }
+
+        .lockIcon {
+            position: absolute;
+            left: 8px;
+            top: 6px;
+            font-size: 14px;
+            opacity: 0.9;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
+            pointer-events: none;
+        }
+
+        .tile.skull {
+            box-shadow:
+                inset 0 0 10px rgba(255, 255, 255, 0.08),
+                0 10px 22px rgba(0, 0, 0, 0.45);
+        }
+
+
+        .sidebar {
+            padding: 16px;
+            background: var(--panel);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .sidebar h2 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: var(--muted);
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
+        .sidebar ul {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .sidebar p {
+            margin: 10px 0 0 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.35;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 18px;
+            transform: translateX(-50%);
+            background: rgba(20, 25, 40, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            padding: 10px 12px;
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 13px;
+            box-shadow: var(--shadow);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s ease, transform .2s ease;
+            backdrop-filter: blur(10px);
+            z-index: 30;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-4px);
+        }
+
+        /* Game over overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            display: none;
+            place-items: center;
+            z-index: 50;
+            backdrop-filter: blur(6px);
+            padding: 18px;
+        }
+
+        .overlay.show {
+            display: grid;
+        }
+
+        .modal {
+            width: min(520px, 92vw);
+            background: rgba(20, 25, 40, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 16px;
+        }
+
+        .modal h3 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+
+        .modal p {
+            margin: 0 0 12px 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.35;
+        }
+
+        .modal .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+
+        .modeGrid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin: 10px 0 12px;
+        }
+
+        .modeBtn {
+            width: 100%;
+            text-align: left;
+            padding: 12px 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.10);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .modeBtn:hover {
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .modeTitle {
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 4px;
+        }
+
+        .modeDesc {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.70);
+            line-height: 1.35;
+        }
+
+        .lbWrap {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+        }
+
+        .lbCols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .lbTitle {
+            font-size: 14px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .lbList {
+            margin: 0;
+            padding-left: 18px;
+            color: rgba(255, 255, 255, 0.80);
+            font-size: 13px;
+        }
+
+        .lbList li {
+            margin: 4px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .lbScore {
+            font-variant-numeric: tabular-nums;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 800;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <header>
+            <div class="title">
+                <h1>Gem Blast</h1>
+                <span>A chaotic Match-3 game!</span>
+            </div>
+            <div class="hud">
+                <div class="pill">Score: <b id="score">0</b></div>
+                <div class="pill">Moves: <b id="moves">0</b></div>
+                <div class="pill">Combo: <b id="combo">0</b></div>
+                <div class="pill" id="timePill" style="display:none">Time: <b id="timeLeft">5:00</b></div>
+                <button id="newGameBtn">New Game</button>
+                <button id="soundBtn" aria-pressed="true">Sound: On</button>
+            </div>
+        </header>
+
+        <div class="main">
+            <div class="boardShell">
+                <div id="board" class="board" aria-label="Match 3 board"></div>
+            </div>
+
+            <aside class="sidebar">
+                <h2>Specials</h2>
+                <ul>
+                    <li><b>4 in a row</b> → <b>Flame</b> (💥) clears adjacent gems when matched</li>
+                    <li><b>T / L</b> → <b>Star</b> (✨) clears row + column when matched</li>
+                    <li><b>5 in a row</b> → <b>Hyper</b> (🌈) swap to clear a color</li>
+                    <li><b>6+ in a row</b> → <b>Sun</b> (☀️) clears row/col plus adjacent rows/cols when matched</li>
+                </ul>
+                <p><b>Bombs (💣):</b> Each move lowers their counter. If any reaches <b>0</b>
+                    before being cleared → <b>game over</b>.</p>
+                <p><b>Rocks (🪨):</b> <b>Cannot be matched</b> but can be cleared
+                    by specials.</p>
+                <p><b>Locks (🔒):</b> <b>Cannot be swapped</b> but can be cleared
+                    like normal.</p>
+                <p><b>Skulls (☠️):</b> A <b>dangerous bomb</b> that must be disarmed
+                    before the counter reaches <b>0</b>. <b>Cannot be swapped or matched.</b> It must be destroyed by
+                    special gems.</p>
+            </aside>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+
+
+    <div id="startOverlay" class="overlay show" aria-hidden="false">
+        <div class="modal">
+            <h3>Choose a Mode</h3>
+            <p>Pick a mode to start. Survival and Time Attack save your best scores on this device.</p>
+
+            <div class="modeGrid">
+                <button class="modeBtn" data-mode="survival">
+                    <div class="modeTitle">Survival</div>
+                    <div class="modeDesc">Bombs, Rocks, Locks, Skulls, and all chaos enabled. No time limit.</div>
+                </button>
+                <button class="modeBtn" data-mode="peaceful">
+                    <div class="modeTitle">Peaceful</div>
+                    <div class="modeDesc">No bombs/locks/skulls. Rocks can drop in from the start. Infinite play.</div>
+                </button>
+                <button class="modeBtn" data-mode="time">
+                    <div class="modeTitle">Time Attack</div>
+                    <div class="modeDesc">5 minutes to score as high as you can. Bombs (always 20) + rocks only.</div>
+                </button>
+            </div>
+
+            <div class="lbWrap">
+                <div class="lbTitle">Leaderboards</div>
+                <div class="lbCols">
+                    <div>
+                        <div class="lbTitle" style="font-size:13px; margin-bottom:6px;">Survival</div>
+                        <ol id="lbSurvival" class="lbList"></ol>
+                    </div>
+                    <div>
+                        <div class="lbTitle" style="font-size:13px; margin-bottom:6px;">Time Attack</div>
+                        <ol id="lbTime" class="lbList"></ol>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+                <button id="clearBoardsBtn" title="Clear saved leaderboards">Clear leaderboards</button>
+                <button id="closeStartBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay" class="overlay" aria-hidden="true">
+        <div class="modal">
+            <h3 id="overTitle">Game Over</h3>
+            <p id="overText">A bomb exploded.</p>
+            <div class="row">
+                <button id="playAgainBtn">Play again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+
+            // ---------------------------
+            // Sound Effects (Web Audio)
+            // ---------------------------
+            const SFX = (() => {
+                let ctx = null;
+                let master = null;
+                let enabled = true;
+
+                function ensure() {
+                    if (!enabled) return null;
+                    if (!ctx) {
+                        ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        master = ctx.createGain();
+                        master.gain.value = 0.18;
+                        master.connect(ctx.destination);
+                    }
+                    if (ctx.state === 'suspended') ctx.resume();
+                    return ctx;
+                }
+
+                function setEnabled(v) { enabled = !!v; }
+                function setVolume(v) {
+                    const c = ensure();
+                    if (!c) return;
+                    master.gain.value = Math.max(0, Math.min(1, v));
+                }
+
+                function tone(freq, dur = 0.08, type = 'sine', gain = 0.6) {
+                    const c = ensure(); if (!c) return;
+                    const t0 = c.currentTime;
+                    const o = c.createOscillator();
+                    const g = c.createGain();
+                    o.type = type;
+                    o.frequency.setValueAtTime(freq, t0);
+                    g.gain.setValueAtTime(0.0001, t0);
+                    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+                    o.connect(g);
+                    g.connect(master);
+                    o.start(t0);
+                    o.stop(t0 + dur + 0.02);
+                }
+
+                function sweep(f0, f1, dur = 0.12, type = 'triangle', gain = 0.55) {
+                    const c = ensure(); if (!c) return;
+                    const t0 = c.currentTime;
+                    const o = c.createOscillator();
+                    const g = c.createGain();
+                    o.type = type;
+                    o.frequency.setValueAtTime(f0, t0);
+                    o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+                    g.gain.setValueAtTime(0.0001, t0);
+                    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+                    o.connect(g);
+                    g.connect(master);
+                    o.start(t0);
+                    o.stop(t0 + dur + 0.02);
+                }
+
+                function click() { tone(950, 0.03, 'square', 0.22); }
+                function swap() { sweep(420, 720, 0.07, 'triangle', 0.22); }
+                function invalid() {
+                    tone(160, 0.06, 'square', 0.18);
+                    setTimeout(() => tone(130, 0.08, 'square', 0.16), 55);
+                }
+                function match(size = 3) {
+                    const base = 520 + (size - 3) * 70;
+                    tone(base, 0.05, 'sine', 0.20);
+                    setTimeout(() => tone(base * 1.25, 0.05, 'sine', 0.18), 45);
+                    setTimeout(() => tone(base * 1.5, 0.06, 'sine', 0.16), 90);
+                }
+                function drop() { tone(260, 0.03, 'triangle', 0.10); }
+                function specialFlame() { sweep(280, 120, 0.10, 'sawtooth', 0.14); }
+                function specialStar() {
+                    tone(1100, 0.04, 'sine', 0.16);
+                    setTimeout(() => tone(1400, 0.04, 'sine', 0.14), 35);
+                    setTimeout(() => tone(1700, 0.05, 'sine', 0.12), 70);
+                }
+                function specialHyper() { sweep(220, 1400, 0.18, 'triangle', 0.16); }
+                function sunCreate() {
+                    // short “shine” arpeggio
+                    tone(880, 0.05, "sine", 0.16);
+                    setTimeout(() => tone(1175, 0.06, "sine", 0.14), 55);
+                    setTimeout(() => tone(1568, 0.07, "sine", 0.12), 110);
+                }
+
+                function sunActivate() {
+                    // bigger “solar burst” sweep + sparkle
+                    sweep(320, 1600, 0.22, "triangle", 0.18);
+                    setTimeout(() => tone(1400, 0.07, "sine", 0.14), 90);
+                    setTimeout(() => tone(1750, 0.08, "sine", 0.12), 140);
+                }
+                function bombWarn() { tone(780, 0.03, 'square', 0.10); }
+                function gameOver() { sweep(420, 90, 0.35, 'sawtooth', 0.18); }
+                function shuffle() {
+                    sweep(300, 900, 0.10, 'triangle', 0.12);
+                    setTimeout(() => sweep(900, 340, 0.12, 'triangle', 0.12), 90);
+                }
+
+                return {
+                    ensure,
+                    setEnabled,
+                    setVolume,
+                    click, swap, invalid, match, drop,
+                    specialFlame, specialStar, specialHyper,
+                    sunCreate, sunActivate,
+                    bombWarn, gameOver, shuffle
+                };
+            })();
+
+            // --- Config ---
+            const ROWS = 8;
+            const COLS = 8;
+
+            // + white added as 7th color
+            const TYPES = [
+                { key: 0, icon: "🔷", bg: "linear-gradient(145deg,#4bd3ff,#2b7bff)" },
+                { key: 1, icon: "💎", bg: "linear-gradient(145deg,#b66bff,#5b40ff)" },
+                { key: 2, icon: "🟢", bg: "linear-gradient(145deg,#67ffb7,#1bbf7a)" },
+                { key: 3, icon: "🟡", bg: "linear-gradient(145deg,#ffe07b,#ffb302)" },
+                { key: 4, icon: "🟥", bg: "linear-gradient(145deg,#ff6a6a,#ff2c6d)" },
+                { key: 5, icon: "🟣", bg: "linear-gradient(145deg,#ff76f6,#b84bff)" },
+                { key: 6, icon: "⚪", bg: "linear-gradient(145deg,#ffffff,#cfd7e6)" }, // white
+            ];
+
+            const DROP_DELAY_MS = 120;
+            const CLEAR_ANIM_MS = 160;
+
+            // Bomb tuning:
+            const BOMB_CHANCE_PER_NEW_GEM = 0.12; // ~12% per new gem created
+            const MAX_BOMBS_PER_REFILL_CYCLE = 2;  // keeps it "periodic" instead of spammy
+            const SCORE_PER_BOMB_STEP = 1000;      // every 1000 score => start count drops by 1
+            const BOMB_START_MAX = 20;
+            const BOMB_START_MIN = 7;
+
+            // Rock tuning:
+            const ROCK_SCORE_THRESHOLD = 2000;
+            const ROCK_CHANCE_PER_REFILL = 0.09;    // tune
+            const MAX_ROCKS_PER_REFILL = 1;         // keep “periodic”
+
+            // Lock tuning:
+            const LOCK_SCORE_THRESHOLD = 3000;
+            const LOCK_CHANCE_PER_MOVE = 0.007;     // tune this
+            const MAX_LOCKS_ADDED_PER_MOVE = 1;    // keep it “periodic”
+            const LOCK_BONUS_POINTS = 25;
+
+            // Skull tuning:
+            const SKULL_SCORE_THRESHOLD = 10000;
+            const SKULL_SPAWN_CHANCE_PER_MOVE = 0.1; // tune
+            const SKULL_START_COUNT = 25;
+
+            // --- Specials ---
+            const SPECIAL = {
+                NONE: "none",
+                FLAME: "flame",
+                STAR: "star",
+                HYPER: "hyper",
+                SUN: "sun",
+                BOMB: "bomb",
+                ROCK: "rock",
+                SKULL: "skull"
+            };
+
+            const SPECIAL_BADGE = {
+                [SPECIAL.FLAME]: "💥",
+                [SPECIAL.STAR]: "✨",
+                [SPECIAL.HYPER]: "🌈",
+                [SPECIAL.SUN]: "☀️",
+                [SPECIAL.BOMB]: "💣",
+            };
+
+            // --- State ---
+            /**
+             * cell = { color:number, special:string, bomb:number|null } or null
+             * bomb: countdown value only for SPECIAL.BOMB
+             */
+            let grid = [];
+            let selected = null;
+            let locked = false;
+            let gameOver = false;
+
+            let score = 0;
+            let moves = 0;
+            let combo = 0;
+
+            const boardEl = document.getElementById("board");
+            const scoreEl = document.getElementById("score");
+            const movesEl = document.getElementById("moves");
+            const comboEl = document.getElementById("combo");
+            const timePillEl = document.getElementById("timePill");
+            const timeLeftEl = document.getElementById("timeLeft");
+            const newGameBtn = document.getElementById("newGameBtn");
+            const soundBtn = document.getElementById("soundBtn");
+            let sfxEnabled = true;
+            function updateSoundBtn() {
+                if (!soundBtn) return;
+                soundBtn.setAttribute('aria-pressed', String(sfxEnabled));
+                soundBtn.textContent = sfxEnabled ? 'Sound: On' : 'Sound: Off';
+            }
+            soundBtn?.addEventListener('click', () => {
+                sfxEnabled = !sfxEnabled;
+                SFX.setEnabled(sfxEnabled);
+                updateSoundBtn();
+                showToast(sfxEnabled ? 'Sound on' : 'Sound off');
+            });
+            updateSoundBtn();
+            const toastEl = document.getElementById("toast");
+
+            const overlayEl = document.getElementById("overlay");
+            const startOverlayEl = document.getElementById("startOverlay");
+            const lbSurvivalEl = document.getElementById("lbSurvival");
+            const lbTimeEl = document.getElementById("lbTime");
+            const closeStartBtn = document.getElementById("closeStartBtn");
+            const clearBoardsBtn = document.getElementById("clearBoardsBtn");
+            const overTextEl = document.getElementById("overText");
+            const playAgainBtn = document.getElementById("playAgainBtn");
+
+            function showToast(msg) {
+                toastEl.textContent = msg;
+                toastEl.classList.add("show");
+                setTimeout(() => toastEl.classList.remove("show"), 1100);
+            }
+
+
+
+            // ---------------------------
+            // Modes + Leaderboards
+            // ---------------------------
+            const GAME_MODES = {
+                survival: {
+                    id: 'survival',
+                    name: 'Survival',
+                    enableBombs: true,
+                    bombFixedStart: null, // uses difficulty scaling
+                    enableLocks: true,
+                    enableSkulls: true,
+                    enableRocks: true,
+                    rockThreshold: 2000,
+                    timeLimitSeconds: null,
+                    leaderboardKey: 'gemblast_lb_survival'
+                },
+                peaceful: {
+                    id: 'peaceful',
+                    name: 'Peaceful',
+                    enableBombs: false,
+                    bombFixedStart: null,
+                    enableLocks: false,
+                    enableSkulls: false,
+                    enableRocks: true,
+                    rockThreshold: 0,
+                    timeLimitSeconds: null,
+                    leaderboardKey: null
+                },
+                time: {
+                    id: 'time',
+                    name: 'Time Attack',
+                    enableBombs: true,
+                    bombFixedStart: 20,
+                    enableLocks: false,
+                    enableSkulls: false,
+                    enableRocks: true,
+                    rockThreshold: 0,
+                    timeLimitSeconds: 300,
+                    leaderboardKey: 'gemblast_lb_time'
+                }
+            };
+
+            let currentMode = 'survival';
+            let timeLeftSeconds = 0;
+            let timeUp = false;
+            let timeUpPending = false;
+            let timeInterval = null;
+
+            function formatTime(s) {
+                s = Math.max(0, s | 0);
+                const m = (s / 60) | 0;
+                const ss = s % 60;
+                return `${m}:${String(ss).padStart(2, '0')}`;
+            }
+
+            function updateTimeHUD() {
+                if (!timePillEl || !timeLeftEl) return;
+                const cfg = GAME_MODES[currentMode];
+                if (cfg.timeLimitSeconds) {
+                    timePillEl.style.display = '';
+                    timeLeftEl.textContent = formatTime(timeLeftSeconds);
+                } else {
+                    timePillEl.style.display = 'none';
+                }
+            }
+
+            function stopTimer() {
+                if (timeInterval) {
+                    clearInterval(timeInterval);
+                    timeInterval = null;
+                }
+            }
+
+            function startTimerIfNeeded() {
+                stopTimer();
+                const cfg = GAME_MODES[currentMode];
+                timeUp = false;
+                if (!cfg.timeLimitSeconds) {
+                    timeLeftSeconds = 0;
+                    updateTimeHUD();
+                    return;
+                }
+                timeLeftSeconds = cfg.timeLimitSeconds;
+                updateTimeHUD();
+                timeInterval = setInterval(() => {
+                    if (gameOver) return;
+                    timeLeftSeconds--;
+                    updateTimeHUD();
+                    if (timeLeftSeconds <= 0) {
+                        timeLeftSeconds = 0;
+                        updateTimeHUD();
+                        timeUp = true;
+                        timeUpPending = true;
+                        // End after current cascade (checked after resolve)
+                        if (!locked && !gameOver) {
+                            stopTimer();
+                            showToast("Time's up!");
+                        }
+                    }
+                }, 1000);
+            }
+
+            function escapeHtml(s) {
+                return String(s).replace(/[&<>"']/g, (ch) => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[ch]));
+            }
+
+            function loadLeaderboard(key) {
+                if (!key) return [];
+                try {
+                    const raw = localStorage.getItem(key);
+                    if (!raw) return [];
+                    const arr = JSON.parse(raw);
+                    return Array.isArray(arr) ? arr : [];
+                } catch {
+                    return [];
+                }
+            }
+
+            function saveLeaderboard(key, entries) {
+                if (!key) return;
+                localStorage.setItem(key, JSON.stringify(entries));
+            }
+
+            function addLeaderboardEntry(key, name, scoreValue) {
+                const entries = loadLeaderboard(key);
+                entries.push({ name, score: scoreValue, date: new Date().toISOString() });
+                entries.sort((a, b) => b.score - a.score);
+                entries.splice(10);
+                saveLeaderboard(key, entries);
+            }
+
+            function renderLeaderboard() {
+                if (lbSurvivalEl) {
+                    const arr = loadLeaderboard(GAME_MODES.survival.leaderboardKey);
+                    lbSurvivalEl.innerHTML = arr.length ? arr.map(e => `<li><span>${escapeHtml(e.name)}</span><span class="lbScore">${e.score}</span></li>`).join('') : '<li><span>(none yet)</span><span class="lbScore">—</span></li>';
+                }
+                if (lbTimeEl) {
+                    const arr = loadLeaderboard(GAME_MODES.time.leaderboardKey);
+                    lbTimeEl.innerHTML = arr.length ? arr.map(e => `<li><span>${escapeHtml(e.name)}</span><span class="lbScore">${e.score}</span></li>`).join('') : '<li><span>(none yet)</span><span class="lbScore">—</span></li>';
+                }
+            }
+
+            function showStartModal() {
+                renderLeaderboard();
+                if (startOverlayEl) {
+                    startOverlayEl.classList.add('show');
+                    startOverlayEl.setAttribute('aria-hidden', 'false');
+                }
+            }
+
+            function hideStartModal() {
+                if (startOverlayEl) {
+                    startOverlayEl.classList.remove('show');
+                    startOverlayEl.setAttribute('aria-hidden', 'true');
+                }
+            }
+
+            function maybeEndTimeAttackAfterResolve() {
+                if (currentMode !== 'time') return;
+                if (timeUp && !gameOver) {
+                    triggerGameOver("Time's up! Final score: " + score);
+                }
+            }
+
+            // Mode buttons
+            document.querySelectorAll('.modeBtn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const mode = btn.getAttribute('data-mode');
+                    if (!mode || !GAME_MODES[mode]) return;
+                    startGame(mode);
+                });
+            });
+            closeStartBtn?.addEventListener('click', () => {
+                // If game hasn't started yet, default to Survival
+                if (!grid.length) startGame('survival');
+                else hideStartModal();
+            });
+            clearBoardsBtn?.addEventListener('click', () => {
+                localStorage.removeItem(GAME_MODES.survival.leaderboardKey);
+                localStorage.removeItem(GAME_MODES.time.leaderboardKey);
+                renderLeaderboard();
+                showToast('Leaderboards cleared');
+            });
+
+            function setHUD() {
+                scoreEl.textContent = String(score);
+                movesEl.textContent = String(moves);
+                comboEl.textContent = String(combo);
+
+                updateTimeHUD();
+            }
+
+            function randColor() {
+                return TYPES[(Math.random() * TYPES.length) | 0].key;
+            }
+
+            function randInt(min, max) {
+                return (Math.random() * (max - min + 1) | 0) + min;
+            }
+
+
+            function typeInfo(color) {
+                return TYPES.find(x => x.key === color);
+            }
+
+            function makeCell(color, special = SPECIAL.NONE, bomb = null, fresh = false, locked = false) {
+                return { color, special, bomb, fresh, locked };
+            }
+
+            function makeRockCell() {
+                // Color doesn’t matter for rocks since they don’t match.
+                return makeCell(randColor(), SPECIAL.ROCK, null, false, false);
+            }
+
+            function hasSkullOnBoard() {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const cell = grid[r][c];
+                        if (cell && cell.special === SPECIAL.SKULL) return true;
+                    }
+                }
+                return false;
+            }
+
+
+            function keyOf(p) { return `${p.r},${p.c}`; }
+            function inBounds(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
+            function isAdjacent(a, b) { return (Math.abs(a.r - b.r) + Math.abs(a.c - b.c)) === 1; }
+            function matchColor(cell) {
+                // Hyper gems should never participate in matches
+                if (!cell) return null;
+                if (cell.special === SPECIAL.HYPER) return null;
+                if (cell.special === SPECIAL.ROCK) return null;
+                if (cell.special === SPECIAL.SKULL) return null;
+                return cell.color;
+            }
+
+
+            function getTileEl(r, c) {
+                return boardEl.querySelector(`.tile[data-r="${r}"][data-c="${c}"]`);
+            }
+
+            function getTileSizePx() {
+                return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--size")) || 64;
+            }
+
+            function getGapPx() {
+                return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gap")) || 8;
+            }
+
+            function animateDropsFromMoves(movesMap) {
+                // movesMap: key "r,c" -> { fromRow:number, isNew:boolean }
+                // Animate the .gem inside each tile by translating it from above to 0
+                const sizePx = getTileSizePx();
+                const gapPx = getGapPx();
+                for (const [key, info] of movesMap.entries()) {
+                    const [r, c] = key.split(",").map(Number);
+                    const tile = getTileEl(r, c);
+                    if (!tile) continue;
+                    const gemEl = tile.querySelector(".gem");
+                    if (!gemEl) continue;
+
+                    let tileDelta = 0;
+                    if (info.isNew) {
+                        tileDelta = r + 2; // spawn a couple tiles above
+                    } else {
+                        tileDelta = r - info.fromRow;
+                    }
+                    if (tileDelta <= 0) continue;
+
+                    const px = tileDelta * (sizePx + gapPx);
+
+                    gemEl.style.transition = "none";
+                    gemEl.style.transform = `translateY(${-px}px)`;
+                    gemEl.getBoundingClientRect(); // force reflow
+
+                    gemEl.style.transition = "transform 220ms var(--ease)";
+                    gemEl.style.transform = "translateY(0px)";
+                }
+            }
+
+            async function animateSwap(a, b, durationMs = 160) {
+                // Animates the gem wrappers between two adjacent tiles.
+                const sizePx = getTileSizePx();
+                const gapPx = getGapPx();
+                const dx = (b.c - a.c) * (sizePx + gapPx);
+                const dy = (b.r - a.r) * (sizePx + gapPx);
+
+                const tileA = getTileEl(a.r, a.c);
+                const tileB = getTileEl(b.r, b.c);
+                if (!tileA || !tileB) return;
+                const gemA = tileA.querySelector('.gem');
+                const gemB = tileB.querySelector('.gem');
+                if (!gemA || !gemB) return;
+
+                // Ensure we're starting from a clean state
+                gemA.style.transition = `transform ${durationMs}ms var(--ease)`;
+                gemB.style.transition = `transform ${durationMs}ms var(--ease)`;
+
+                gemA.style.transform = `translate(${dx}px, ${dy}px)`;
+                gemB.style.transform = `translate(${-dx}px, ${-dy}px)`;
+
+                await new Promise(res => setTimeout(res, durationMs));
+            }
+
+            function snapSwapReset(a, b) {
+                // After a swap animation + render, snap both gem wrappers back to 0 with no transition.
+                const tileA = getTileEl(a.r, a.c);
+                const tileB = getTileEl(b.r, b.c);
+                if (!tileA || !tileB) return;
+                const gemA = tileA.querySelector('.gem');
+                const gemB = tileB.querySelector('.gem');
+                if (!gemA || !gemB) return;
+
+                gemA.style.transition = 'none';
+                gemB.style.transition = 'none';
+                gemA.style.transform = 'translate(0px, 0px)';
+                gemB.style.transform = 'translate(0px, 0px)';
+                // Force reflow, then restore default transition used for drops
+                gemA.getBoundingClientRect();
+                gemA.style.transition = 'transform 220ms var(--ease)';
+                gemB.style.transition = 'transform 220ms var(--ease)';
+            }
+
+            function buildDOM() {
+                boardEl.innerHTML = "";
+                boardEl.style.gridTemplateColumns = `repeat(${COLS}, var(--size))`;
+                boardEl.style.gridTemplateRows = `repeat(${ROWS}, var(--size))`;
+
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const tile = document.createElement("div");
+                        tile.className = "tile";
+                        tile.dataset.r = String(r);
+                        tile.dataset.c = String(c);
+
+                        // Gem wrapper (we animate this for falling)
+                        const gem = document.createElement("div");
+                        gem.className = "gem";
+
+                        const icon = document.createElement("div");
+                        icon.className = "icon";
+                        gem.appendChild(icon);
+
+                        const badge = document.createElement("div");
+                        badge.className = "badge";
+                        badge.style.display = "none";
+                        gem.appendChild(badge);
+
+                        const lock = document.createElement("div");
+                        lock.className = "lockIcon";
+                        lock.style.display = "none";
+                        lock.textContent = "🔒";
+                        tile.appendChild(lock);
+
+                        tile.appendChild(gem);
+
+                        tile.addEventListener("click", onTileClick);
+                        boardEl.appendChild(tile);
+                    }
+                }
+            }
+
+            function render() {
+                const tiles = boardEl.children;
+                for (let i = 0; i < tiles.length; i++) {
+                    const tile = tiles[i];
+                    const r = Number(tile.dataset.r);
+                    const c = Number(tile.dataset.c);
+                    const cell = grid[r][c];
+
+                    tile.classList.toggle("selected", selected && selected.r === r && selected.c === c);
+                    tile.classList.remove("bomb-danger", "bomb-warning", "bomb-spawn", "skull");
+                    tile.classList.remove("clearing");
+
+                    const iconEl = tile.querySelector(".icon");
+                    const badgeEl = tile.querySelector(".badge");
+                    badgeEl.classList.remove("bomb", "warn", "crit");
+
+                    const lockEl = tile.querySelector(".lockIcon");
+                    if (lockEl) lockEl.style.display = (cell && cell.locked) ? "block" : "none";
+
+                    if (cell === null) {
+                        tile.style.background = "rgba(255,255,255,0.06)";
+                        iconEl.textContent = "";
+                        badgeEl.style.display = "none";
+                        badgeEl.textContent = "";
+                        if (lockEl) lockEl.style.display = "none";
+                        continue;
+                    }
+
+                    if (cell.special === SPECIAL.SKULL) {
+                        tile.classList.add("skull");
+                    }
+
+
+                    const info = typeInfo(cell.color);
+
+                    // Hyper uses rainbow background; everything else uses its color background
+                    if (cell.special === SPECIAL.HYPER) {
+                        tile.style.background = "var(--rainbow)";
+                    } else if (cell.special === SPECIAL.ROCK) {
+                        tile.style.background = "linear-gradient(145deg,#9aa3ad,#59626d)";
+                    } else if (cell.special === SPECIAL.SKULL) {
+                        tile.style.background = "linear-gradient(145deg,#000000,#2b2b2b)";
+                    } else {
+                        tile.style.background = info.bg;
+                    }
+
+
+                    // icon display
+                    if (cell.special === SPECIAL.HYPER) iconEl.textContent = "🌈";
+                    else if (cell.special === SPECIAL.STAR) iconEl.textContent = "⭐";
+                    else if (cell.special === SPECIAL.FLAME) iconEl.textContent = "🔥";
+                    else if (cell.special === SPECIAL.SUN) iconEl.textContent = "☀️";
+                    else if (cell.special === SPECIAL.BOMB) iconEl.textContent = "💣";
+                    else if (cell.special === SPECIAL.ROCK) iconEl.textContent = "🪨";
+                    else if (cell.special === SPECIAL.SKULL) iconEl.textContent = "☠️";
+
+                    else iconEl.textContent = info.icon;
+
+                    // badge display
+                    if (cell.special === SPECIAL.BOMB || cell.special === SPECIAL.SKULL) {
+                        badgeEl.style.display = "block";
+                        badgeEl.classList.add("bomb");
+                        badgeEl.classList.add("bomb");
+
+                        badgeEl.textContent = String(cell.bomb ?? "?");
+
+                        const t = (cell.bomb ?? 999);
+
+                        if (t <= 4) badgeEl.classList.add("crit");
+                        else if (t <= 8) badgeEl.classList.add("warn");
+
+                        if (t <= 8) {
+                            tile.classList.add("bomb-danger");
+                            tile.classList.add("bomb-warning");
+                        }
+
+                        if (cell.fresh) {
+                            tile.classList.add("bomb-spawn");
+                        }
+                    } else if (cell.special !== SPECIAL.NONE) {
+                        badgeEl.style.display = "block";
+                        badgeEl.textContent = SPECIAL_BADGE[cell.special] || "";
+                    } else {
+                        badgeEl.style.display = "none";
+                        badgeEl.textContent = "";
+                    }
+                }
+                setHUD();
+            }
+
+            function markInvalidSwap(a, b) {
+                const elA = getTileEl(a.r, a.c);
+                const elB = getTileEl(b.r, b.c);
+                elA.classList.add("invalid");
+                elB.classList.add("invalid");
+                setTimeout(() => { elA.classList.remove("invalid"); elB.classList.remove("invalid"); }, 400);
+            }
+
+            function swap(a, b) {
+                const tmp = grid[a.r][a.c];
+                grid[a.r][a.c] = grid[b.r][b.c];
+                grid[b.r][b.c] = tmp;
+            }
+
+            // ---------------------------
+            // Match finding (by color)
+            // ---------------------------
+            function findRuns() {
+                const hRuns = [];
+                const vRuns = [];
+
+                // Horizontal
+                for (let r = 0; r < ROWS; r++) {
+                    let start = 0;
+                    for (let c = 1; c <= COLS; c++) {
+                        const prev = grid[r][c - 1];
+                        const curr = (c < COLS) ? grid[r][c] : null;
+                        const prevColor = matchColor(prev);
+                        const currColor = matchColor(curr);
+
+
+                        if (currColor === prevColor && prevColor !== null) continue;
+
+                        const len = c - start;
+                        if (prevColor !== null && len >= 3) {
+                            const cells = [];
+                            for (let cc = start; cc < c; cc++) cells.push({ r, c: cc });
+                            hRuns.push({ cells, color: prevColor });
+                        }
+                        start = c;
+                    }
+                }
+
+                // Vertical
+                for (let c = 0; c < COLS; c++) {
+                    let start = 0;
+                    for (let r = 1; r <= ROWS; r++) {
+                        const prev = grid[r - 1][c];
+                        const curr = (r < ROWS) ? grid[r][c] : null;
+                        const prevColor = matchColor(prev);
+                        const currColor = matchColor(curr);
+
+
+                        if (currColor === prevColor && prevColor !== null) continue;
+
+                        const len = r - start;
+                        if (prevColor !== null && len >= 3) {
+                            const cells = [];
+                            for (let rr = start; rr < r; rr++) cells.push({ r: rr, c });
+                            vRuns.push({ cells, color: prevColor });
+                        }
+                        start = r;
+                    }
+                }
+
+                return { hRuns, vRuns };
+            }
+
+            function computeMatchGroups() {
+                const { hRuns, vRuns } = findRuns();
+                const allRuns = [...hRuns, ...vRuns];
+
+                const used = new Array(allRuns.length).fill(false);
+                const groups = [];
+
+                for (let i = 0; i < allRuns.length; i++) {
+                    if (used[i]) continue;
+
+                    const queue = [i];
+                    used[i] = true;
+                    const groupCells = new Map();
+                    const colors = new Set();
+
+                    while (queue.length) {
+                        const idx = queue.pop();
+                        const run = allRuns[idx];
+                        colors.add(run.color);
+                        for (const p of run.cells) groupCells.set(keyOf(p), p);
+
+                        for (let j = 0; j < allRuns.length; j++) {
+                            if (used[j]) continue;
+                            let overlap = false;
+                            for (const p of allRuns[j].cells) {
+                                if (groupCells.has(keyOf(p))) { overlap = true; break; }
+                            }
+                            if (overlap) {
+                                used[j] = true;
+                                queue.push(j);
+                            }
+                        }
+                    }
+
+                    groups.push({
+                        cells: Array.from(groupCells.values()),
+                        colors: Array.from(colors),
+                        hRuns: hRuns.filter(r => r.cells.some(p => groupCells.has(keyOf(p)))),
+                        vRuns: vRuns.filter(r => r.cells.some(p => groupCells.has(keyOf(p)))),
+                    });
+                }
+
+                return groups;
+            }
+
+            function getMatchGroups() {
+                return computeMatchGroups().filter(g => g.cells.length >= 3);
+            }
+
+            function hasAnyMatches() {
+                const { hRuns, vRuns } = findRuns();
+                return (hRuns.length + vRuns.length) > 0;
+            }
+
+            // ---------------------------
+            // No-moves detection + shuffle
+            // ---------------------------
+            function isHyper(cell) {
+                return !!cell && cell.special === SPECIAL.HYPER;
+            }
+
+            function hasAnyValidMoves() {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const a = grid[r][c];
+                        if (!a) continue;
+
+                        const neighbors = [
+                            { rr: r, cc: c + 1 },
+                            { rr: r + 1, cc: c },
+                        ];
+
+                        for (const n of neighbors) {
+                            if (!inBounds(n.rr, n.cc)) continue;
+
+                            const b = grid[n.rr][n.cc];
+                            if (!b) continue;
+
+                            // ✅ locked gems can’t be swapped
+                            if (a.locked || b.locked) continue;
+
+                            // ✅ Hyper swaps are always valid moves
+                            if (isHyper(a) || isHyper(b)) return true;
+
+                            // Try swap and see if it creates a match
+                            swap({ r, c }, { r: n.rr, c: n.cc });
+                            const ok = hasAnyMatches();
+                            swap({ r, c }, { r: n.rr, c: n.cc });
+
+                            if (ok) return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+
+            function shuffleBoardOnce() {
+                const flat = [];
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        flat.push(grid[r][c]);
+                    }
+                }
+                // Fisher-Yates
+                for (let i = flat.length - 1; i > 0; i--) {
+                    const j = (Math.random() * (i + 1)) | 0;
+                    const tmp = flat[i];
+                    flat[i] = flat[j];
+                    flat[j] = tmp;
+                }
+                let idx = 0;
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        grid[r][c] = flat[idx++];
+                    }
+                }
+            }
+
+            async function animateShuffle() {
+                const gems = boardEl.querySelectorAll('.gem');
+                gems.forEach((el) => {
+                    el.style.transition = 'transform 140ms var(--ease)';
+                    const dx = (Math.random() * 14 - 7);
+                    const dy = (Math.random() * 14 - 7);
+                    const rot = (Math.random() * 18 - 9);
+                    el.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(0.94)`;
+                });
+                await new Promise(res => setTimeout(res, 150));
+                gems.forEach((el) => {
+                    el.style.transition = 'transform 180ms var(--ease)';
+                    el.style.transform = 'translate(0px, 0px) rotate(0deg) scale(1)';
+                });
+                await new Promise(res => setTimeout(res, 190));
+            }
+
+            async function ensurePlayableBoard() {
+                if (hasAnyValidMoves()) return;
+
+                showToast('No moves — shuffling!');
+
+                SFX.shuffle();
+
+                // Try a bunch of shuffles until we find a board with:
+                // - no immediate matches (so it doesn't auto-clear)
+                // - at least one valid move
+                let tries = 0;
+                do {
+                    shuffleBoardOnce();
+                    tries++;
+                } while (tries < 60 && (hasAnyMatches() || !hasAnyValidMoves()));
+
+                render();
+                await animateShuffle();
+                render();
+            }
+
+            // ---------------------------
+            // Special creation rules (same as before)
+            // ---------------------------
+            function decideSpecialForGroup(group, preferSpawn) {
+                if (group.colors.length !== 1) return null;
+                const color = group.colors[0];
+                const cellKeys = new Set(group.cells.map(keyOf));
+
+                const hCells = new Set();
+                const vCells = new Set();
+
+                for (const run of group.hRuns) {
+                    if (run.color !== color) continue;
+                    for (const p of run.cells) hCells.add(keyOf(p));
+                }
+                for (const run of group.vRuns) {
+                    if (run.color !== color) continue;
+                    for (const p of run.cells) vCells.add(keyOf(p));
+                }
+
+                let isTL = false;
+                for (const k of hCells) { if (vCells.has(k)) { isTL = true; break; } }
+
+                let maxLen = 0;
+                for (const run of [...group.hRuns, ...group.vRuns]) {
+                    if (run.color !== color) continue;
+                    maxLen = Math.max(maxLen, run.cells.length);
+                }
+
+                let specialType = null;
+                if (maxLen >= 6) specialType = SPECIAL.SUN;
+                else if (maxLen === 5) specialType = SPECIAL.HYPER;
+                else if (isTL) specialType = SPECIAL.STAR;
+                else if (maxLen === 4) specialType = SPECIAL.FLAME;
+                else return null;
+
+                let spawn = null;
+                if (preferSpawn && cellKeys.has(keyOf(preferSpawn))) {
+                    spawn = preferSpawn;
+                } else if (isTL) {
+                    for (const k of hCells) {
+                        if (vCells.has(k)) {
+                            const [r, c] = k.split(",").map(Number);
+                            spawn = { r, c };
+                            break;
+                        }
+                    }
+                }
+                if (!spawn) {
+                    let bestRun = null;
+                    for (const run of [...group.hRuns, ...group.vRuns]) {
+                        if (run.color !== color) continue;
+                        if (!bestRun || run.cells.length > bestRun.cells.length) bestRun = run;
+                    }
+                    spawn = bestRun ? bestRun.cells[(bestRun.cells.length / 2) | 0] : group.cells[0];
+                }
+
+                return { spawn, specialType, color };
+            }
+
+            // ---------------------------
+            // Clearing / effects
+            // ---------------------------
+            function addAllAdjacent(set, r, c) {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        const rr = r + dr, cc = c + dc;
+                        if (inBounds(rr, cc)) set.add(`${rr},${cc}`);
+                    }
+                }
+            }
+
+            function addRowCol(set, r, c) {
+                for (let cc = 0; cc < COLS; cc++) set.add(`${r},${cc}`);
+                for (let rr = 0; rr < ROWS; rr++) set.add(`${rr},${c}`);
+            }
+
+            function addRowColPlus(set, r, c) {
+                // rows r-1, r, r+1
+                for (let rr = r - 1; rr <= r + 1; rr++) {
+                    if (rr < 0 || rr >= ROWS) continue;
+                    for (let cc = 0; cc < COLS; cc++) set.add(`${rr},${cc}`);
+                }
+                // cols c-1, c, c+1
+                for (let cc = c - 1; cc <= c + 1; cc++) {
+                    if (cc < 0 || cc >= COLS) continue;
+                    for (let rr = 0; rr < ROWS; rr++) set.add(`${rr},${cc}`);
+                }
+            }
+
+
+
+            // --- Hyper hit-by-special behavior ---
+            function addAllOfColor(set, color) {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const cell = grid[r][c];
+                        if (!cell) continue;
+                        if (cell.special === SPECIAL.HYPER) continue; // don't clear other hypers via color clear
+                        if (cell.color === color) set.add(`${r},${c}`);
+                    }
+                }
+            }
+
+            function addKeyFromSource(expanded, key, sourceColor, triggeredHypers, fxState) {
+                // Add a single cell to the expanded clear set, and if it's a Hyper,
+                // trigger the Hyper using the color of the gem that hit it.
+                expanded.add(key);
+                const [rr, cc] = key.split(',').map(Number);
+                const cell = grid[rr][cc];
+                if (!cell) return;
+
+                if (cell.special === SPECIAL.HYPER) {
+                    if (!triggeredHypers.has(key)) {
+                        triggeredHypers.add(key);
+                        fxState.hyperHit = true;
+                        // Hyper is destroyed by the special, but triggers a color clear based on the hitter's color.
+                        addAllOfColor(expanded, sourceColor);
+                    }
+                }
+            }
+
+            function addAllAdjacentFromSource(expanded, r, c, sourceColor, triggeredHypers, fxState) {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        const rr = r + dr, cc = c + dc;
+                        if (!inBounds(rr, cc)) continue;
+                        addKeyFromSource(expanded, `${rr},${cc}`, sourceColor, triggeredHypers, fxState);
+                    }
+                }
+            }
+
+            function addRowColFromSource(expanded, r, c, sourceColor, triggeredHypers, fxState) {
+                for (let cc = 0; cc < COLS; cc++) addKeyFromSource(expanded, `${r},${cc}`, sourceColor, triggeredHypers, fxState);
+                for (let rr = 0; rr < ROWS; rr++) addKeyFromSource(expanded, `${rr},${c}`, sourceColor, triggeredHypers, fxState);
+            }
+
+            function addRowColPlusFromSource(expanded, r, c, sourceColor, triggeredHypers, fxState) {
+                for (let rr = r - 1; rr <= r + 1; rr++) {
+                    if (rr < 0 || rr >= ROWS) continue;
+                    for (let cc = 0; cc < COLS; cc++) addKeyFromSource(expanded, `${rr},${cc}`, sourceColor, triggeredHypers, fxState);
+                }
+                for (let cc = c - 1; cc <= c + 1; cc++) {
+                    if (cc < 0 || cc >= COLS) continue;
+                    for (let rr = 0; rr < ROWS; rr++) addKeyFromSource(expanded, `${rr},${cc}`, sourceColor, triggeredHypers, fxState);
+                }
+            }
+
+            function clearSetAnimation(toClear) {
+                for (const key of toClear) {
+                    const [r, c] = key.split(",").map(Number);
+                    const el = getTileEl(r, c);
+                    if (el) el.classList.add("clearing");
+                }
+                return new Promise(res => setTimeout(res, CLEAR_ANIM_MS));
+            }
+
+            function gatherEffectsFromSpecials(initialClear) {
+                let sunActivated = false;
+                const triggeredHypers = new Set();
+                const fxState = { hyperHit: false };
+
+                const expanded = new Set(initialClear);
+                let changed = true;
+                while (changed) {
+                    changed = false;
+                    for (const key of Array.from(expanded)) {
+                        const [r, c] = key.split(",").map(Number);
+                        const cell = grid[r][c];
+                        if (!cell) continue;
+
+                        const sourceColor = cell.color;
+
+                        if (cell.special === SPECIAL.FLAME) {
+                            const before = expanded.size;
+                            addAllAdjacentFromSource(expanded, r, c, sourceColor, triggeredHypers, fxState);
+                            if (expanded.size !== before) changed = true;
+                        } else if (cell.special === SPECIAL.STAR) {
+                            const before = expanded.size;
+                            addRowColFromSource(expanded, r, c, sourceColor, triggeredHypers, fxState);
+                            if (expanded.size !== before) changed = true;
+                        } else if (cell.special === SPECIAL.SUN) {
+                            const before = expanded.size;
+                            addRowColPlusFromSource(expanded, r, c, sourceColor, triggeredHypers, fxState);
+                            if (expanded.size !== before) changed = true;
+                            sunActivated = true;
+                        }
+                        // Hyper triggers only on swap, unless hit by a special (handled above).
+                    }
+                }
+
+                if (sunActivated) SFX.sunActivate();
+                if (fxState.hyperHit) SFX.specialHyper();
+
+                return expanded;
+            }
+
+            function scoreForClearKeys(clearedKeys, comboIndex) {
+                let baseScore = 0;
+
+                for (const key of clearedKeys) {
+                    const [r, c] = key.split(",").map(Number);
+                    const cell = grid[r][c];
+
+                    if (cell) {
+                        if (cell.special === SPECIAL.SKULL) {
+                            baseScore += 500;
+                        } else if (cell.special === SPECIAL.BOMB) {
+                            baseScore += 50;
+                        } else if (cell.special === SPECIAL.ROCK) {
+                            baseScore += randInt(25, 100);   // ✅ rock payout
+                        } else {
+                            baseScore += 10;
+                        }
+
+                        if (cell.locked) baseScore += LOCK_BONUS_POINTS;
+                    } else {
+                        baseScore += 10;
+                    }
+
+                }
+
+                const mult = 1 + (comboIndex - 1) * 0.35;
+                return Math.round(baseScore * mult);
+            }
+
+            function bombStartCountForScore(s) {
+                const cfg = GAME_MODES[currentMode];
+                if (cfg.bombFixedStart != null) return cfg.bombFixedStart;
+                // Survival scaling
+                const raw = 20 - Math.floor(Math.max(0, s) / 1000);
+                return Math.max(7, raw);
+            }
+
+            function maybeMakeBombCell() {
+                const startCount = bombStartCountForScore(score);
+                return makeCell(randColor(), SPECIAL.BOMB, startCount, true); // fresh bomb
+            }
+
+            function maybeAddLocksAfterMove() {
+                if (!GAME_MODES[currentMode].enableLocks) return;
+                if (score < LOCK_SCORE_THRESHOLD) return;
+
+                let added = 0;
+                for (let tries = 0; tries < 30 && added < MAX_LOCKS_ADDED_PER_MOVE; tries++) {
+                    if (Math.random() > LOCK_CHANCE_PER_MOVE) continue;
+
+                    const r = (Math.random() * ROWS) | 0;
+                    const c = (Math.random() * COLS) | 0;
+                    const cell = grid[r][c];
+
+                    if (!cell) continue;
+                    if (cell.locked) continue;
+
+                    // Only appear on regular gems (not specials, not bombs)
+                    if (cell.special !== SPECIAL.NONE) continue;
+
+                    cell.locked = true;
+                    added++;
+                }
+
+                if (added > 0) {
+                    showToast("A lock appeared! 🔒");
+                }
+            }
+
+            function maybeAddSkullAfterMove() {
+                if (!GAME_MODES[currentMode].enableSkulls) return;
+                if (score < SKULL_SCORE_THRESHOLD) return;
+                if (hasSkullOnBoard()) return;
+                if (Math.random() > SKULL_SPAWN_CHANCE_PER_MOVE) return;
+
+                // pick a random NORMAL gem (not special, not bomb, not rock, not locked)
+                for (let tries = 0; tries < 60; tries++) {
+                    const r = (Math.random() * ROWS) | 0;
+                    const c = (Math.random() * COLS) | 0;
+                    const cell = grid[r][c];
+                    if (!cell) continue;
+
+                    // only appear on normal gems
+                    if (cell.special !== SPECIAL.NONE) continue;
+                    if (cell.locked) continue;
+
+                    // transform it into Skull
+                    cell.special = SPECIAL.SKULL;
+                    cell.bomb = SKULL_START_COUNT;
+                    cell.fresh = true;  // so it visibly “starts at 20”
+                    showToast("A Skull Gem appeared! ☠️");
+                    return;
+                }
+            }
+
+
+            function collapseAndRefill() {
+                const movesMap = new Map(); // "r,c" -> { fromRow:number, isNew:boolean }
+
+                // Track which cells are newly generated this cycle
+                const isNew = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+
+                // Gravity down per column, while tracking where each gem came from
+                for (let c = 0; c < COLS; c++) {
+                    const col = [];
+                    for (let r = ROWS - 1; r >= 0; r--) {
+                        if (grid[r][c] !== null) {
+                            col.push({ cell: grid[r][c], fromRow: r });
+                        }
+                    }
+
+                    let writeRow = ROWS - 1;
+                    for (const item of col) {
+                        grid[writeRow][c] = item.cell;
+                        if (writeRow !== item.fromRow) {
+                            movesMap.set(`${writeRow},${c}`, { fromRow: item.fromRow, isNew: false });
+                        }
+                        writeRow--;
+                    }
+
+                    for (let r = writeRow; r >= 0; r--) {
+                        grid[r][c] = makeCell(randColor(), SPECIAL.NONE, null, false);
+                        isNew[r][c] = true;
+                        movesMap.set(`${r},${c}`, { fromRow: -1, isNew: true });
+                    }
+                }
+
+                // Spawn bombs ONLY in newly created cells, and only at the TOPMOST new cell of a column
+                let bombsMade = 0;
+
+                if (GAME_MODES[currentMode].enableBombs && Math.random() < BOMB_CHANCE_PER_NEW_GEM) {
+                    const candidateCols = [];
+                    for (let c = 0; c < COLS; c++) {
+                        let topNewR = -1;
+                        for (let r = 0; r < ROWS; r++) {
+                            if (isNew[r][c]) { topNewR = r; break; }
+                        }
+                        if (topNewR !== -1) candidateCols.push({ c, r: topNewR });
+                    }
+
+                    if (candidateCols.length > 0 && bombsMade < MAX_BOMBS_PER_REFILL_CYCLE) {
+                        const pick = candidateCols[(Math.random() * candidateCols.length) | 0];
+                        const cell = grid[pick.r][pick.c];
+                        if (cell && cell.special === SPECIAL.NONE) {
+                            grid[pick.r][pick.c] = maybeMakeBombCell();
+                            movesMap.set(`${pick.r},${pick.c}`, { fromRow: -1, isNew: true });
+                            bombsMade++;
+                        }
+                    }
+                }
+
+                // Rocks spawn from the top after score threshold
+                let rocksMade = 0;
+
+                if (GAME_MODES[currentMode].enableRocks && score >= GAME_MODES[currentMode].rockThreshold && Math.random() < ROCK_CHANCE_PER_REFILL) {
+                    // find columns with at least one newly created cell (from top)
+                    const candidateCols = [];
+                    for (let c = 0; c < COLS; c++) {
+                        let topNewR = -1;
+                        for (let r = 0; r < ROWS; r++) {
+                            if (isNew[r][c]) { topNewR = r; break; }
+                        }
+                        if (topNewR !== -1) candidateCols.push({ c, r: topNewR });
+                    }
+
+                    while (candidateCols.length > 0 && rocksMade < MAX_ROCKS_PER_REFILL) {
+                        const idx = (Math.random() * candidateCols.length) | 0;
+                        const pick = candidateCols.splice(idx, 1)[0];
+
+                        const cell = grid[pick.r][pick.c];
+                        // Only overwrite regular NEW gems, not specials/bombs/locks
+                        if (cell && cell.special === SPECIAL.NONE && !cell.locked) {
+                            grid[pick.r][pick.c] = makeRockCell();
+
+                            // mark as "new drop" so it animates falling
+                            movesMap.set(`${pick.r},${pick.c}`, { fromRow: -1, isNew: true });
+
+                            rocksMade++;
+                        }
+                    }
+                }
+
+
+                return movesMap;
+            }
+
+
+            async function performClearCycle(matchGroups, preferSpawn) {
+                try {
+                    const maxGroup = Math.max(3, ...matchGroups.map(g => g.cells.length));
+                    SFX.match(Math.min(5, maxGroup));
+                } catch (e) { }
+
+                const spawns = [];
+                for (const group of matchGroups) {
+                    const d = decideSpecialForGroup(group, preferSpawn);
+                    if (d) spawns.push(d);
+                }
+
+                const spawnKeys = new Set(spawns.map(s => keyOf(s.spawn)));
+                const initialClear = new Set();
+                for (const group of matchGroups) {
+                    for (const p of group.cells) {
+                        const k = keyOf(p);
+                        if (spawnKeys.has(k)) continue; // keep cell to turn into special
+                        initialClear.add(k);
+                    }
+                }
+
+                const finalClear = gatherEffectsFromSpecials(initialClear);
+
+                // Play special activation sounds (once per cycle)
+                {
+                    let hasFlame = false;
+                    let hasStar = false;
+                    for (const key of finalClear) {
+                        const [rr, cc] = key.split(',').map(Number);
+                        const cell = grid[rr][cc];
+                        if (!cell) continue;
+                        if (cell.special === SPECIAL.FLAME) hasFlame = true;
+                        if (cell.special === SPECIAL.STAR) hasStar = true;
+                    }
+                    if (hasFlame) SFX.specialFlame();
+                    if (hasStar) SFX.specialStar();
+                }
+
+
+                await clearSetAnimation(finalClear);
+
+                const gained = scoreForClearKeys(finalClear, combo);
+
+                for (const key of finalClear) {
+                    const [r, c] = key.split(",").map(Number);
+                    grid[r][c] = null;
+                }
+
+                for (const s of spawns) {
+                    const { spawn, specialType, color } = s;
+                    // Turn the kept cell into the special
+                    grid[spawn.r][spawn.c] = makeCell(color, specialType, null);
+
+                    if (s.specialType === SPECIAL.SUN) {
+                        SFX.sunCreate();
+                    }
+                }
+
+                score += gained;
+
+                const movesMap = collapseAndRefill();
+                render();
+                animateDropsFromMoves(movesMap);
+                SFX.drop();
+                await new Promise(res => setTimeout(res, 230));
+                render();
+            }
+
+            async function resolveBoard(preferSpawn) {
+                combo = 0;
+                while (true) {
+                    const groups = getMatchGroups();
+                    if (groups.length === 0) break;
+                    combo++;
+                    render();
+                    await performClearCycle(groups, preferSpawn);
+                    preferSpawn = null;
+                }
+                setHUD();
+                // If the board has no possible moves, shuffle it.
+                await ensurePlayableBoard();
+            }
+
+            // ---------------------------
+            // Hyper swap behavior
+            // ---------------------------
+            async function resolveHyperSwap(a, b) {
+                const A = grid[a.r][a.c];
+                const B = grid[b.r][b.c];
+                if (!A || !B) return false;
+
+                const aHyper = A.special === SPECIAL.HYPER;
+                const bHyper = B.special === SPECIAL.HYPER;
+                if (!aHyper && !bHyper) return false;
+
+                SFX.specialHyper();
+
+                combo = 1;
+                render();
+
+                if (aHyper && bHyper) {
+                    const all = new Set();
+                    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) all.add(`${r},${c}`);
+
+                    await clearSetAnimation(all);
+                    const gained = scoreForClearKeys(all, combo);
+                    for (const k of all) {
+                        const [r, c] = k.split(",").map(Number);
+                        grid[r][c] = null;
+                    }
+                    score += gained;
+                    const movesMap = collapseAndRefill();
+                    render();
+                    animateDropsFromMoves(movesMap);
+                    SFX.drop();
+                    await new Promise(res => setTimeout(res, 230));
+                    render();
+                    await resolveBoard(null);
+                    showToast("Hyper + Hyper! Board cleared!");
+                    return true;
+                }
+
+                const targetColor = aHyper ? B.color : A.color;
+
+                const toClear = new Set();
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const cell = grid[r][c];
+                        if (cell && cell.color === targetColor) toClear.add(`${r},${c}`);
+                    }
+                }
+                toClear.add(`${a.r},${a.c}`);
+                toClear.add(`${b.r},${b.c}`);
+
+                const expanded = gatherEffectsFromSpecials(toClear);
+
+                await clearSetAnimation(expanded);
+                const gained = scoreForClearKeys(expanded, combo);
+                for (const k of expanded) {
+                    const [r, c] = k.split(",").map(Number);
+                    grid[r][c] = null;
+                }
+                score += gained;
+                const movesMap2 = collapseAndRefill();
+                render();
+                animateDropsFromMoves(movesMap2);
+                SFX.drop();
+                await new Promise(res => setTimeout(res, 230));
+                render();
+                await resolveBoard(null);
+
+                showToast("Hyper activated!");
+                return true;
+            }
+
+            // ---------------------------
+            // Bomb countdown per move
+            // ---------------------------
+            function decrementBombsOrGameOver() {
+                let exploded = false;
+
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const cell = grid[r][c];
+                        if (!cell) continue;
+                        if (cell.special !== SPECIAL.BOMB && cell.special !== SPECIAL.SKULL) continue;
+
+                        // Only decrement bombs that are already armed
+                        if (cell.fresh) continue;
+
+                        cell.bomb = (cell.bomb ?? 0) - 1;
+
+                        if (cell.bomb === 8) {
+                            SFX.bombWarn();
+                        }
+                        if (cell.bomb <= 0) {
+                            exploded = true;
+                        }
+                    }
+                }
+
+                if (exploded) {
+                    triggerGameOver("A bomb reached 0 and exploded. 💥");
+                    return false;
+                }
+                return true;
+            }
+
+            function armFreshBombs() {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const cell = grid[r][c];
+                        if (cell && (cell.special === SPECIAL.BOMB || cell.special === SPECIAL.SKULL) && cell.fresh) {
+                            cell.fresh = false;
+                        }
+                    }
+                }
+            }
+
+
+
+
+            function triggerGameOver(message) {
+                SFX.gameOver();
+                stopTimer();
+
+                // Save leaderboard entry for Survival / Time Attack
+                const cfg = GAME_MODES[currentMode];
+                if (cfg.leaderboardKey) {
+                    try {
+                        let name = prompt(`New high score? Enter your name for ${cfg.name}:`, "");
+                        if (name !== null) {
+                            name = (name || '').trim();
+                            if (!name) name = 'Player';
+                            addLeaderboardEntry(cfg.leaderboardKey, name, score);
+                        }
+                    } catch { }
+                }
+
+                gameOver = true;
+                locked = true;
+                selected = null;
+                render();
+                overTextEl.textContent = message;
+                overlayEl.classList.add("show");
+                overlayEl.setAttribute("aria-hidden", "false");
+            }
+
+            function clearGameOver() {
+                overlayEl.classList.remove("show");
+                overlayEl.setAttribute("aria-hidden", "true");
+            }
+
+            // ---------------------------
+            // Input
+            // ---------------------------
+            async function onTileClick(e) {
+                if (locked || gameOver) return;
+
+                SFX.ensure();
+
+                const r = Number(e.currentTarget.dataset.r);
+                const c = Number(e.currentTarget.dataset.c);
+                const clicked = { r, c };
+
+                if (!selected) {
+                    selected = clicked;
+                    SFX.click();
+                    render();
+                    return;
+                }
+
+                if (selected.r === clicked.r && selected.c === clicked.c) {
+                    selected = null;
+                    render();
+                    return;
+                }
+
+                if (!isAdjacent(selected, clicked)) {
+                    selected = clicked;
+                    SFX.click();
+                    render();
+                    return;
+                }
+
+                locked = true;
+                const a = selected;
+                const b = clicked;
+
+                // Block swapping locked gems
+                const cellA = grid[a.r][a.c];
+                const cellB = grid[b.r][b.c];
+                if ((cellA && cellA.locked || cellA.special === SPECIAL.SKULL) ||
+                    (cellB && cellB.locked || cellB.special === SPECIAL.SKULL)) {
+                    const elA = getTileEl(a.r, a.c);
+                    const elB = getTileEl(b.r, b.c);
+                    elA?.classList.add("invalid");
+                    elB?.classList.add("invalid");
+                    setTimeout(() => { elA?.classList.remove("invalid"); elB?.classList.remove("invalid"); }, 250);
+
+                    selected = null;
+                    render();
+                    locked = false;   // <-- important: undo the locked=true you just set
+                    return;
+                }
+
+                armFreshBombs();
+
+
+                // Swap animation first (visual)
+                SFX.swap();
+                await animateSwap(a, b);
+                // Then swap data and render the swapped board, and snap transforms back to 0.
+                swap(a, b);
+                render();
+                snapSwapReset(a, b);
+
+                // Hyper swap priority
+                if (await resolveHyperSwap(a, b)) {
+                    moves++;
+                    // Decrement bombs after a completed move
+                    if (!decrementBombsOrGameOver()) { locked = true; return; }
+                    render();
+                    maybeEndTimeAttackAfterResolve();
+                    selected = null;
+                    locked = false;
+                    return;
+                }
+
+                // Validate normal match
+                if (!hasAnyMatches()) {
+                    // Animate swap-back for invalid moves
+                    SFX.invalid();
+                    markInvalidSwap(a, b);
+                    await animateSwap(a, b, 140);
+                    swap(a, b);
+                    selected = null;
+                    render();
+                    snapSwapReset(a, b);
+                    locked = false;
+                    return;
+                }
+
+                moves++;
+                selected = null;
+                render();
+
+                // Prefer special spawn at the second-clicked tile
+                await resolveBoard(b);
+                maybeEndTimeAttackAfterResolve();
+
+                // Bomb countdown tick after the move is fully resolved
+                if (!decrementBombsOrGameOver()) { locked = true; return; }
+
+                maybeAddLocksAfterMove();
+                maybeAddSkullAfterMove();
+                render();
+                locked = false;
+            }
+
+            // ---------------------------
+            // Initialization
+            // ---------------------------
+            function generateBoard() {
+                grid = Array.from({ length: ROWS }, () =>
+                    Array.from({ length: COLS }, () => makeCell(randColor(), SPECIAL.NONE, null))
+                );
+
+                // Remove initial matches
+                let safety = 0;
+                while (safety++ < 50) {
+                    if (!hasAnyMatches()) break;
+                    const groups = getMatchGroups();
+                    for (const g of groups) {
+                        for (const p of g.cells) {
+                            grid[p.r][p.c] = makeCell(randColor(), SPECIAL.NONE, null);
+                        }
+                    }
+                }
+            }
+
+            async function startGame(modeId) {
+                const cfg = GAME_MODES[modeId] || GAME_MODES.survival;
+                currentMode = cfg.id;
+
+                clearGameOver();
+                gameOver = false;
+                locked = true;
+                selected = null;
+                score = 0;
+                moves = 0;
+                combo = 0;
+
+                // reset mode-specific state
+                stopTimer();
+                timeUp = false;
+
+                generateBoard();
+                render();
+                await resolveBoard(null); // stabilize
+
+                startTimerIfNeeded();
+                locked = false;
+
+                hideStartModal();
+                showToast(cfg.name + "!");
+            }
+
+            async function newGame() {
+                // always show mode select
+                showStartModal();
+            }
+
+            newGameBtn.addEventListener("click", () => { showStartModal(); });
+            playAgainBtn.addEventListener("click", () => { showStartModal(); });
+
+            buildDOM();
+            showStartModal();
+        })();
+    </script>
+</body>
+
+</html>

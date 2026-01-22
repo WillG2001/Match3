@@ -1,0 +1,1375 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Match-3 (Browser) + Specials + Bombs</title>
+    <style>
+        :root {
+            --bg: #0b1020;
+            --panel: rgba(255, 255, 255, 0.08);
+            --panel2: rgba(255, 255, 255, 0.12);
+            --text: rgba(255, 255, 255, 0.92);
+            --muted: rgba(255, 255, 255, 0.68);
+            --size: 64px;
+            --gap: 8px;
+            --radius: 14px;
+            --shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+            --ease: cubic-bezier(.2, .8, .2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(1200px 700px at 20% 10%, rgba(119, 84, 255, 0.35), transparent 60%),
+                radial-gradient(900px 600px at 80% 30%, rgba(84, 212, 255, 0.25), transparent 60%),
+                radial-gradient(900px 600px at 40% 90%, rgba(255, 122, 84, 0.18), transparent 60%),
+                var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .wrap {
+            width: min(900px, 94vw);
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: var(--panel);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .title {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+        }
+
+        .title h1 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 0.2px;
+        }
+
+        .title span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .hud {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            background: var(--panel2);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            padding: 8px 10px;
+            border-radius: 999px;
+            font-size: 13px;
+            color: var(--muted);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pill b {
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+        }
+
+        :root {
+            --rainbow: linear-gradient(135deg,
+                    #ff4d4d, #ffb84d, #fff04d, #6bff7a, #4dd7ff, #4d6bff, #b84dff, #ff4dd2);
+        }
+
+
+        button {
+            appearance: none;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.10);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform .08s ease, background .2s ease;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        button:active {
+            transform: translateY(1px) scale(0.99);
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .boardShell {
+            padding: 16px 18px 16px 16px;
+            background: var(--panel);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+            overflow: visible;
+        }
+
+        .board {
+            position: relative;
+            user-select: none;
+            touch-action: manipulation;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(8, var(--size));
+            grid-template-rows: repeat(8, var(--size));
+            gap: var(--gap);
+        }
+
+        @media (max-width: 860px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+
+            :root {
+                --size: 52px;
+                --gap: 7px;
+            }
+        }
+
+        .tile {
+            position: relative;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
+            transform: translateZ(0);
+            transition: transform 140ms var(--ease), filter 140ms var(--ease), opacity 140ms var(--ease);
+            overflow: hidden;
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            cursor: pointer;
+        }
+
+        .tile::after {
+            content: "";
+            position: absolute;
+            inset: -30%;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.42), transparent 55%);
+            transform: rotate(12deg);
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
+        .tile .icon {
+            font-size: 30px;
+            filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
+        }
+
+        .tile.selected {
+            outline: 3px solid rgba(255, 255, 255, 0.70);
+            outline-offset: 2px;
+            transform: translateY(-2px) scale(1.03);
+            filter: brightness(1.08);
+        }
+
+        .tile.invalid {
+            animation: shake 180ms ease-in-out 0s 2;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-3px);
+            }
+
+            50% {
+                transform: translateX(3px);
+            }
+
+            75% {
+                transform: translateX(-2px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes bombWiggle {
+            0% {
+                transform: rotate(0deg) translateX(0);
+            }
+
+            20% {
+                transform: rotate(-2deg) translateX(-1px);
+            }
+
+            40% {
+                transform: rotate(2deg) translateX(1px);
+            }
+
+            60% {
+                transform: rotate(-2deg) translateX(-1px);
+            }
+
+            80% {
+                transform: rotate(2deg) translateX(1px);
+            }
+
+            100% {
+                transform: rotate(0deg) translateX(0);
+            }
+        }
+
+        @keyframes bombGlow {
+            0% {
+                box-shadow: 0 0 0 rgba(255, 80, 80, 0.0), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+
+            50% {
+                box-shadow: 0 0 18px rgba(255, 80, 80, 0.55), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+
+            100% {
+                box-shadow: 0 0 0 rgba(255, 80, 80, 0.0), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+        }
+
+        /* bomb "just spawned" blink */
+        @keyframes bombSpawnBlink {
+            0% {
+                filter: brightness(1.0);
+            }
+
+            20% {
+                filter: brightness(1.5);
+            }
+
+            40% {
+                filter: brightness(1.0);
+            }
+
+            60% {
+                filter: brightness(1.5);
+            }
+
+            80% {
+                filter: brightness(1.0);
+            }
+
+            100% {
+                filter: brightness(1.0);
+            }
+        }
+
+        .tile.bomb-spawn {
+            animation: bombSpawnBlink 0.7s ease-in-out 1;
+        }
+
+        /* glow */
+        @keyframes bombGlow {
+            0% {
+                box-shadow: 0 0 0 rgba(255, 80, 80, 0.0), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+
+            50% {
+                box-shadow: 0 0 18px rgba(255, 80, 80, 0.55), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+
+            100% {
+                box-shadow: 0 0 0 rgba(255, 80, 80, 0.0), 0 10px 22px rgba(0, 0, 0, 0.25);
+            }
+        }
+
+        /* spawn blink */
+        @keyframes bombSpawnBlink {
+            0% {
+                filter: brightness(1.0);
+            }
+
+            20% {
+                filter: brightness(1.5);
+            }
+
+            40% {
+                filter: brightness(1.0);
+            }
+
+            60% {
+                filter: brightness(1.5);
+            }
+
+            80% {
+                filter: brightness(1.0);
+            }
+
+            100% {
+                filter: brightness(1.0);
+            }
+        }
+
+        /* IMPORTANT: define animations ONLY on combined selectors */
+        .tile.bomb-warning {
+            animation: bombGlow 0.85s ease-in-out infinite;
+        }
+
+        .tile.bomb-danger {
+            animation: bombWiggle 0.22s ease-in-out infinite;
+        }
+
+        /* When both classes are present, run both animations together */
+        .tile.bomb-warning.bomb-danger {
+            animation:
+                bombGlow 0.85s ease-in-out infinite,
+                bombWiggle 0.22s ease-in-out infinite;
+        }
+
+        /* Spawn blink alone */
+        .tile.bomb-spawn {
+            animation: bombSpawnBlink 0.7s ease-in-out 1;
+        }
+
+        /* Spawn blink + glow */
+        .tile.bomb-warning.bomb-spawn {
+            animation:
+                bombSpawnBlink 0.7s ease-in-out 1,
+                bombGlow 0.85s ease-in-out infinite;
+        }
+
+        /* Spawn blink + wiggle */
+        .tile.bomb-danger.bomb-spawn {
+            animation:
+                bombSpawnBlink 0.7s ease-in-out 1,
+                bombWiggle 0.22s ease-in-out infinite;
+        }
+
+        /* Spawn blink + glow + wiggle (all three) */
+        .tile.bomb-warning.bomb-danger.bomb-spawn {
+            animation:
+                bombSpawnBlink 0.7s ease-in-out 1,
+                bombGlow 0.85s ease-in-out infinite,
+                bombWiggle 0.22s ease-in-out infinite;
+        }
+
+
+        .tile.clearing {
+            opacity: 0;
+            transform: scale(0.6);
+        }
+
+        .badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(0, 0, 0, 0.38);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 12px;
+            line-height: 1.1;
+            pointer-events: none;
+            backdrop-filter: blur(6px);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .badge.bomb {
+            background: rgba(255, 70, 70, 0.25);
+            border-color: rgba(255, 120, 120, 0.35);
+        }
+
+        .badge.bomb.warn {
+            background: rgba(255, 170, 0, 0.22);
+            border-color: rgba(255, 200, 80, 0.40);
+            color: rgba(255, 235, 205, 0.95);
+        }
+
+        .badge.bomb.crit {
+            background: rgba(255, 60, 60, 0.28);
+            border-color: rgba(255, 120, 120, 0.55);
+            color: rgba(255, 230, 230, 0.98);
+            font-weight: 800;
+        }
+
+
+        .sidebar {
+            padding: 16px;
+            background: var(--panel);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .sidebar h2 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: var(--muted);
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
+        .sidebar ul {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .sidebar p {
+            margin: 10px 0 0 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.35;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 18px;
+            transform: translateX(-50%);
+            background: rgba(20, 25, 40, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            padding: 10px 12px;
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 13px;
+            box-shadow: var(--shadow);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s ease, transform .2s ease;
+            backdrop-filter: blur(10px);
+            z-index: 30;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-4px);
+        }
+
+        /* Game over overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            display: none;
+            place-items: center;
+            z-index: 50;
+            backdrop-filter: blur(6px);
+            padding: 18px;
+        }
+
+        .overlay.show {
+            display: grid;
+        }
+
+        .modal {
+            width: min(520px, 92vw);
+            background: rgba(20, 25, 40, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 16px;
+        }
+
+        .modal h3 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+
+        .modal p {
+            margin: 0 0 12px 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.35;
+        }
+
+        .modal .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <header>
+            <div class="title">
+                <h1>Match-3</h1>
+                <span>+ white gems + bomb countdown</span>
+            </div>
+            <div class="hud">
+                <div class="pill">Score: <b id="score">0</b></div>
+                <div class="pill">Moves: <b id="moves">0</b></div>
+                <div class="pill">Combo: <b id="combo">0</b></div>
+                <button id="newGameBtn">New Game</button>
+            </div>
+        </header>
+
+        <div class="main">
+            <div class="boardShell">
+                <div id="board" class="board" aria-label="Match 3 board"></div>
+            </div>
+
+            <aside class="sidebar">
+                <h2>Specials</h2>
+                <ul>
+                    <li><b>4 in a row</b> → <b>Flame</b> (💥) clears adjacent gems when matched</li>
+                    <li><b>T / L</b> → <b>Star</b> (✨) clears row + column when matched</li>
+                    <li><b>5 in a row</b> → <b>Hyper</b> (🌈) swap to clear a color</li>
+                </ul>
+                <p><b>Bombs (💣):</b> Appear occasionally. Each move lowers their counter. If any reaches <b>0</b>
+                    before being cleared → <b>game over</b>.</p>
+            </aside>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <div id="overlay" class="overlay" aria-hidden="true">
+        <div class="modal">
+            <h3 id="overTitle">Game Over</h3>
+            <p id="overText">A bomb exploded.</p>
+            <div class="row">
+                <button id="playAgainBtn">Play again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            // --- Config ---
+            const ROWS = 8;
+            const COLS = 8;
+
+            // + white added as 7th color
+            const TYPES = [
+                { key: 0, icon: "🔷", bg: "linear-gradient(145deg,#4bd3ff,#2b7bff)" },
+                { key: 1, icon: "💎", bg: "linear-gradient(145deg,#b66bff,#5b40ff)" },
+                { key: 2, icon: "🟢", bg: "linear-gradient(145deg,#67ffb7,#1bbf7a)" },
+                { key: 3, icon: "🟡", bg: "linear-gradient(145deg,#ffe07b,#ffb302)" },
+                { key: 4, icon: "🟥", bg: "linear-gradient(145deg,#ff6a6a,#ff2c6d)" },
+                { key: 5, icon: "🟣", bg: "linear-gradient(145deg,#ff76f6,#b84bff)" },
+                { key: 6, icon: "⚪", bg: "linear-gradient(145deg,#ffffff,#cfd7e6)" }, // white
+            ];
+
+            const DROP_DELAY_MS = 120;
+            const CLEAR_ANIM_MS = 160;
+
+            // Bomb tuning:
+            const BOMB_CHANCE_PER_NEW_GEM = 0.12; // ~12% per new gem created
+            const MAX_BOMBS_PER_REFILL_CYCLE = 2;  // keeps it "periodic" instead of spammy
+            const SCORE_PER_BOMB_STEP = 1000;      // every 1000 score => start count drops by 1
+            const BOMB_START_MAX = 20;
+            const BOMB_START_MIN = 7;
+
+            // --- Specials ---
+            const SPECIAL = {
+                NONE: "none",
+                FLAME: "flame",
+                STAR: "star",
+                HYPER: "hyper",
+                BOMB: "bomb",
+            };
+
+            const SPECIAL_BADGE = {
+                [SPECIAL.FLAME]: "💥",
+                [SPECIAL.STAR]: "✨",
+                [SPECIAL.HYPER]: "🌈",
+                [SPECIAL.BOMB]: "💣",
+            };
+
+            // --- State ---
+            /**
+             * cell = { color:number, special:string, bomb:number|null } or null
+             * bomb: countdown value only for SPECIAL.BOMB
+             */
+            let grid = [];
+            let selected = null;
+            let locked = false;
+            let gameOver = false;
+
+            let score = 0;
+            let moves = 0;
+            let combo = 0;
+
+            const boardEl = document.getElementById("board");
+            const scoreEl = document.getElementById("score");
+            const movesEl = document.getElementById("moves");
+            const comboEl = document.getElementById("combo");
+            const newGameBtn = document.getElementById("newGameBtn");
+            const toastEl = document.getElementById("toast");
+
+            const overlayEl = document.getElementById("overlay");
+            const overTextEl = document.getElementById("overText");
+            const playAgainBtn = document.getElementById("playAgainBtn");
+
+            function showToast(msg) {
+                toastEl.textContent = msg;
+                toastEl.classList.add("show");
+                setTimeout(() => toastEl.classList.remove("show"), 1100);
+            }
+
+            function setHUD() {
+                scoreEl.textContent = String(score);
+                movesEl.textContent = String(moves);
+                comboEl.textContent = String(combo);
+            }
+
+            function randColor() {
+                return TYPES[(Math.random() * TYPES.length) | 0].key;
+            }
+
+            function typeInfo(color) {
+                return TYPES.find(x => x.key === color);
+            }
+
+            function makeCell(color, special = SPECIAL.NONE, bomb = null, fresh = false) {
+                return { color, special, bomb, fresh };
+            }
+
+            function keyOf(p) { return `${p.r},${p.c}`; }
+            function inBounds(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
+            function isAdjacent(a, b) { return (Math.abs(a.r - b.r) + Math.abs(a.c - b.c)) === 1; }
+            function matchColor(cell) {
+                // Hyper gems should never participate in matches
+                if (!cell) return null;
+                if (cell.special === SPECIAL.HYPER) return null;
+                return cell.color;
+            }
+
+
+            function getTileEl(r, c) {
+                return boardEl.querySelector(`.tile[data-r="${r}"][data-c="${c}"]`);
+            }
+
+            function buildDOM() {
+                boardEl.innerHTML = "";
+                boardEl.style.gridTemplateColumns = `repeat(${COLS}, var(--size))`;
+                boardEl.style.gridTemplateRows = `repeat(${ROWS}, var(--size))`;
+
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const tile = document.createElement("div");
+                        tile.className = "tile";
+                        tile.dataset.r = String(r);
+                        tile.dataset.c = String(c);
+
+                        const icon = document.createElement("div");
+                        icon.className = "icon";
+                        tile.appendChild(icon);
+
+                        const badge = document.createElement("div");
+                        badge.className = "badge";
+                        badge.style.display = "none";
+                        tile.appendChild(badge);
+
+                        tile.addEventListener("click", onTileClick);
+                        boardEl.appendChild(tile);
+                    }
+                }
+            }
+
+            function render() {
+                const tiles = boardEl.children;
+                for (let i = 0; i < tiles.length; i++) {
+                    const tile = tiles[i];
+                    const r = Number(tile.dataset.r);
+                    const c = Number(tile.dataset.c);
+                    const cell = grid[r][c];
+
+                    tile.classList.toggle("selected", selected && selected.r === r && selected.c === c);
+                    tile.classList.remove("bomb-danger", "bomb-warning", "bomb-spawn");
+                    tile.classList.remove("clearing");
+
+                    const iconEl = tile.querySelector(".icon");
+                    const badgeEl = tile.querySelector(".badge");
+                    badgeEl.classList.remove("bomb", "warn", "crit");
+
+
+                    if (cell === null) {
+                        tile.style.background = "rgba(255,255,255,0.06)";
+                        iconEl.textContent = "";
+                        badgeEl.style.display = "none";
+                        badgeEl.textContent = "";
+                        continue;
+                    }
+
+                    const info = typeInfo(cell.color);
+
+                    // Hyper uses rainbow background; everything else uses its color background
+                    if (cell.special === SPECIAL.HYPER) {
+                        tile.style.background = "var(--rainbow)";
+                    } else {
+                        tile.style.background = info.bg;
+                    }
+
+
+                    // icon display
+                    if (cell.special === SPECIAL.HYPER) iconEl.textContent = "🌈";
+                    else if (cell.special === SPECIAL.STAR) iconEl.textContent = "⭐";
+                    else if (cell.special === SPECIAL.FLAME) iconEl.textContent = "🔥";
+                    else if (cell.special === SPECIAL.BOMB) iconEl.textContent = "💣";
+                    else iconEl.textContent = info.icon;
+
+                    // badge display
+                    if (cell.special === SPECIAL.BOMB) {
+                        badgeEl.style.display = "block";
+                        badgeEl.classList.add("bomb");
+                        badgeEl.classList.add("bomb");
+
+                        badgeEl.textContent = String(cell.bomb ?? "?");
+
+                        const t = (cell.bomb ?? 999);
+
+                        if (t <= 4) badgeEl.classList.add("crit");
+                        else if (t <= 8) badgeEl.classList.add("warn");
+
+                        if (t <= 8) {
+                            tile.classList.add("bomb-danger");
+                            tile.classList.add("bomb-warning");
+                        }
+
+                        if (cell.fresh) {
+                            tile.classList.add("bomb-spawn");
+                        }
+                    } else if (cell.special !== SPECIAL.NONE) {
+                        badgeEl.style.display = "block";
+                        badgeEl.textContent = SPECIAL_BADGE[cell.special] || "";
+                    } else {
+                        badgeEl.style.display = "none";
+                        badgeEl.textContent = "";
+                    }
+                }
+                setHUD();
+            }
+
+            function markInvalidSwap(a, b) {
+                const elA = getTileEl(a.r, a.c);
+                const elB = getTileEl(b.r, b.c);
+                elA.classList.add("invalid");
+                elB.classList.add("invalid");
+                setTimeout(() => { elA.classList.remove("invalid"); elB.classList.remove("invalid"); }, 400);
+            }
+
+            function swap(a, b) {
+                const tmp = grid[a.r][a.c];
+                grid[a.r][a.c] = grid[b.r][b.c];
+                grid[b.r][b.c] = tmp;
+            }
+
+            // ---------------------------
+            // Match finding (by color)
+            // ---------------------------
+            function findRuns() {
+                const hRuns = [];
+                const vRuns = [];
+
+                // Horizontal
+                for (let r = 0; r < ROWS; r++) {
+                    let start = 0;
+                    for (let c = 1; c <= COLS; c++) {
+                        const prev = grid[r][c - 1];
+                        const curr = (c < COLS) ? grid[r][c] : null;
+                        const prevColor = matchColor(prev);
+                        const currColor = matchColor(curr);
+
+
+                        if (currColor === prevColor && prevColor !== null) continue;
+
+                        const len = c - start;
+                        if (prevColor !== null && len >= 3) {
+                            const cells = [];
+                            for (let cc = start; cc < c; cc++) cells.push({ r, c: cc });
+                            hRuns.push({ cells, color: prevColor });
+                        }
+                        start = c;
+                    }
+                }
+
+                // Vertical
+                for (let c = 0; c < COLS; c++) {
+                    let start = 0;
+                    for (let r = 1; r <= ROWS; r++) {
+                        const prev = grid[r - 1][c];
+                        const curr = (r < ROWS) ? grid[r][c] : null;
+                        const prevColor = matchColor(prev);
+                        const currColor = matchColor(curr);
+
+
+                        if (currColor === prevColor && prevColor !== null) continue;
+
+                        const len = r - start;
+                        if (prevColor !== null && len >= 3) {
+                            const cells = [];
+                            for (let rr = start; rr < r; rr++) cells.push({ r: rr, c });
+                            vRuns.push({ cells, color: prevColor });
+                        }
+                        start = r;
+                    }
+                }
+
+                return { hRuns, vRuns };
+            }
+
+            function computeMatchGroups() {
+                const { hRuns, vRuns } = findRuns();
+                const allRuns = [...hRuns, ...vRuns];
+
+                const used = new Array(allRuns.length).fill(false);
+                const groups = [];
+
+                for (let i = 0; i < allRuns.length; i++) {
+                    if (used[i]) continue;
+
+                    const queue = [i];
+                    used[i] = true;
+                    const groupCells = new Map();
+                    const colors = new Set();
+
+                    while (queue.length) {
+                        const idx = queue.pop();
+                        const run = allRuns[idx];
+                        colors.add(run.color);
+                        for (const p of run.cells) groupCells.set(keyOf(p), p);
+
+                        for (let j = 0; j < allRuns.length; j++) {
+                            if (used[j]) continue;
+                            let overlap = false;
+                            for (const p of allRuns[j].cells) {
+                                if (groupCells.has(keyOf(p))) { overlap = true; break; }
+                            }
+                            if (overlap) {
+                                used[j] = true;
+                                queue.push(j);
+                            }
+                        }
+                    }
+
+                    groups.push({
+                        cells: Array.from(groupCells.values()),
+                        colors: Array.from(colors),
+                        hRuns: hRuns.filter(r => r.cells.some(p => groupCells.has(keyOf(p)))),
+                        vRuns: vRuns.filter(r => r.cells.some(p => groupCells.has(keyOf(p)))),
+                    });
+                }
+
+                return groups;
+            }
+
+            function getMatchGroups() {
+                return computeMatchGroups().filter(g => g.cells.length >= 3);
+            }
+
+            function hasAnyMatches() {
+                const { hRuns, vRuns } = findRuns();
+                return (hRuns.length + vRuns.length) > 0;
+            }
+
+            // ---------------------------
+            // Special creation rules (same as before)
+            // ---------------------------
+            function decideSpecialForGroup(group, preferSpawn) {
+                if (group.colors.length !== 1) return null;
+                const color = group.colors[0];
+                const cellKeys = new Set(group.cells.map(keyOf));
+
+                const hCells = new Set();
+                const vCells = new Set();
+
+                for (const run of group.hRuns) {
+                    if (run.color !== color) continue;
+                    for (const p of run.cells) hCells.add(keyOf(p));
+                }
+                for (const run of group.vRuns) {
+                    if (run.color !== color) continue;
+                    for (const p of run.cells) vCells.add(keyOf(p));
+                }
+
+                let isTL = false;
+                for (const k of hCells) { if (vCells.has(k)) { isTL = true; break; } }
+
+                let maxLen = 0;
+                for (const run of [...group.hRuns, ...group.vRuns]) {
+                    if (run.color !== color) continue;
+                    maxLen = Math.max(maxLen, run.cells.length);
+                }
+
+                let specialType = null;
+                if (maxLen >= 5) specialType = SPECIAL.HYPER;
+                else if (isTL) specialType = SPECIAL.STAR;
+                else if (maxLen === 4) specialType = SPECIAL.FLAME;
+                else return null;
+
+                let spawn = null;
+                if (preferSpawn && cellKeys.has(keyOf(preferSpawn))) {
+                    spawn = preferSpawn;
+                } else if (isTL) {
+                    for (const k of hCells) {
+                        if (vCells.has(k)) {
+                            const [r, c] = k.split(",").map(Number);
+                            spawn = { r, c };
+                            break;
+                        }
+                    }
+                }
+                if (!spawn) {
+                    let bestRun = null;
+                    for (const run of [...group.hRuns, ...group.vRuns]) {
+                        if (run.color !== color) continue;
+                        if (!bestRun || run.cells.length > bestRun.cells.length) bestRun = run;
+                    }
+                    spawn = bestRun ? bestRun.cells[(bestRun.cells.length / 2) | 0] : group.cells[0];
+                }
+
+                return { spawn, specialType, color };
+            }
+
+            // ---------------------------
+            // Clearing / effects
+            // ---------------------------
+            function addAllAdjacent(set, r, c) {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        const rr = r + dr, cc = c + dc;
+                        if (inBounds(rr, cc)) set.add(`${rr},${cc}`);
+                    }
+                }
+            }
+
+            function addRowCol(set, r, c) {
+                for (let cc = 0; cc < COLS; cc++) set.add(`${r},${cc}`);
+                for (let rr = 0; rr < ROWS; rr++) set.add(`${rr},${c}`);
+            }
+
+            function clearSetAnimation(toClear) {
+                for (const key of toClear) {
+                    const [r, c] = key.split(",").map(Number);
+                    const el = getTileEl(r, c);
+                    if (el) el.classList.add("clearing");
+                }
+                return new Promise(res => setTimeout(res, CLEAR_ANIM_MS));
+            }
+
+            function gatherEffectsFromSpecials(initialClear) {
+                const expanded = new Set(initialClear);
+                let changed = true;
+                while (changed) {
+                    changed = false;
+                    for (const key of Array.from(expanded)) {
+                        const [r, c] = key.split(",").map(Number);
+                        const cell = grid[r][c];
+                        if (!cell) continue;
+
+                        if (cell.special === SPECIAL.FLAME) {
+                            const before = expanded.size;
+                            addAllAdjacent(expanded, r, c);
+                            if (expanded.size !== before) changed = true;
+                        } else if (cell.special === SPECIAL.STAR) {
+                            const before = expanded.size;
+                            addRowCol(expanded, r, c);
+                            if (expanded.size !== before) changed = true;
+                        }
+                        // Hyper triggers only on swap; Bomb clears normally.
+                    }
+                }
+                return expanded;
+            }
+
+            function scoreForClear(nCleared, comboIndex) {
+                const base = nCleared * 10;
+                const mult = 1 + (comboIndex - 1) * 0.35;
+                return Math.round(base * mult);
+            }
+
+            function bombStartCountForScore(s) {
+                const step = Math.floor(s / SCORE_PER_BOMB_STEP);
+                return Math.max(BOMB_START_MIN, BOMB_START_MAX - step);
+            }
+
+            function maybeMakeBombCell() {
+                const startCount = bombStartCountForScore(score);
+                return makeCell(randColor(), SPECIAL.BOMB, startCount, true); // fresh bomb
+            }
+
+
+            function collapseAndRefill() {
+                // Track which cells are newly generated this cycle
+                const isNew = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+
+                // Gravity down per column
+                for (let c = 0; c < COLS; c++) {
+                    let write = ROWS - 1;
+
+                    for (let r = ROWS - 1; r >= 0; r--) {
+                        if (grid[r][c] !== null) {
+                            grid[write][c] = grid[r][c];
+                            if (write !== r) grid[r][c] = null;
+                            write--;
+                        }
+                    }
+
+                    // Fill remaining with new gems (these are "from the top")
+                    for (let r = write; r >= 0; r--) {
+                        grid[r][c] = makeCell(randColor(), SPECIAL.NONE, null);
+                        isNew[r][c] = true;
+                    }
+                }
+
+                // Spawn bombs ONLY in newly created cells, and only at the TOPMOST new cell of a column
+                // Keep it periodic with your existing knobs.
+                let bombsMade = 0;
+
+                // Decide whether we spawn a bomb this cycle
+                if (Math.random() < BOMB_CHANCE_PER_NEW_GEM) {
+                    // Pick candidate columns that have at least one new cell
+                    const candidateCols = [];
+                    for (let c = 0; c < COLS; c++) {
+                        // topmost new cell is the smallest r where isNew[r][c] is true
+                        let topNewR = -1;
+                        for (let r = 0; r < ROWS; r++) {
+                            if (isNew[r][c]) { topNewR = r; break; }
+                        }
+                        if (topNewR !== -1) candidateCols.push({ c, r: topNewR });
+                    }
+
+                    if (candidateCols.length > 0 && bombsMade < MAX_BOMBS_PER_REFILL_CYCLE) {
+                        const pick = candidateCols[(Math.random() * candidateCols.length) | 0];
+                        // Only overwrite normal new gems (don’t overwrite specials)
+                        const cell = grid[pick.r][pick.c];
+                        if (cell && cell.special === SPECIAL.NONE) {
+                            grid[pick.r][pick.c] = maybeMakeBombCell();
+                            bombsMade++;
+                        }
+                    }
+                }
+            }
+
+
+            async function performClearCycle(matchGroups, preferSpawn) {
+                const spawns = [];
+                for (const group of matchGroups) {
+                    const d = decideSpecialForGroup(group, preferSpawn);
+                    if (d) spawns.push(d);
+                }
+
+                const spawnKeys = new Set(spawns.map(s => keyOf(s.spawn)));
+                const initialClear = new Set();
+                for (const group of matchGroups) {
+                    for (const p of group.cells) {
+                        const k = keyOf(p);
+                        if (spawnKeys.has(k)) continue; // keep cell to turn into special
+                        initialClear.add(k);
+                    }
+                }
+
+                const finalClear = gatherEffectsFromSpecials(initialClear);
+
+                await clearSetAnimation(finalClear);
+
+                for (const key of finalClear) {
+                    const [r, c] = key.split(",").map(Number);
+                    grid[r][c] = null;
+                }
+
+                for (const s of spawns) {
+                    const { spawn, specialType, color } = s;
+                    // Turn the kept cell into the special
+                    grid[spawn.r][spawn.c] = makeCell(color, specialType, null);
+                }
+
+                score += scoreForClear(finalClear.size, combo);
+
+                collapseAndRefill();
+                await new Promise(res => setTimeout(res, DROP_DELAY_MS));
+                render();
+            }
+
+            async function resolveBoard(preferSpawn) {
+                combo = 0;
+                while (true) {
+                    const groups = getMatchGroups();
+                    if (groups.length === 0) break;
+                    combo++;
+                    render();
+                    await performClearCycle(groups, preferSpawn);
+                    preferSpawn = null;
+                }
+                setHUD();
+            }
+
+            // ---------------------------
+            // Hyper swap behavior
+            // ---------------------------
+            async function resolveHyperSwap(a, b) {
+                const A = grid[a.r][a.c];
+                const B = grid[b.r][b.c];
+                if (!A || !B) return false;
+
+                const aHyper = A.special === SPECIAL.HYPER;
+                const bHyper = B.special === SPECIAL.HYPER;
+                if (!aHyper && !bHyper) return false;
+
+                combo = 1;
+                render();
+
+                if (aHyper && bHyper) {
+                    const all = new Set();
+                    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) all.add(`${r},${c}`);
+
+                    await clearSetAnimation(all);
+                    for (const k of all) {
+                        const [r, c] = k.split(",").map(Number);
+                        grid[r][c] = null;
+                    }
+                    score += scoreForClear(all.size, combo);
+                    collapseAndRefill();
+                    await new Promise(res => setTimeout(res, DROP_DELAY_MS));
+                    render();
+                    await resolveBoard(null);
+                    showToast("Hyper + Hyper! Board cleared!");
+                    return true;
+                }
+
+                const targetColor = aHyper ? B.color : A.color;
+
+                const toClear = new Set();
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const cell = grid[r][c];
+                        if (cell && cell.color === targetColor) toClear.add(`${r},${c}`);
+                    }
+                }
+                toClear.add(`${a.r},${a.c}`);
+                toClear.add(`${b.r},${b.c}`);
+
+                const expanded = gatherEffectsFromSpecials(toClear);
+
+                await clearSetAnimation(expanded);
+                for (const k of expanded) {
+                    const [r, c] = k.split(",").map(Number);
+                    grid[r][c] = null;
+                }
+                score += scoreForClear(expanded.size, combo);
+                collapseAndRefill();
+                await new Promise(res => setTimeout(res, DROP_DELAY_MS));
+                render();
+                await resolveBoard(null);
+
+                showToast("Hyper activated!");
+                return true;
+            }
+
+            // ---------------------------
+            // Bomb countdown per move
+            // ---------------------------
+            function decrementBombsOrGameOver() {
+                let exploded = false;
+
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const cell = grid[r][c];
+                        if (!cell) continue;
+                        if (cell.special !== SPECIAL.BOMB) continue;
+
+                        // Only decrement bombs that are already armed
+                        if (cell.fresh) continue;
+
+                        cell.bomb = (cell.bomb ?? 0) - 1;
+                        if (cell.bomb <= 0) {
+                            exploded = true;
+                        }
+                    }
+                }
+
+                if (exploded) {
+                    triggerGameOver("A bomb reached 0 and exploded. 💥");
+                    return false;
+                }
+                return true;
+            }
+
+            function armFreshBombs() {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const cell = grid[r][c];
+                        if (cell && cell.special === SPECIAL.BOMB && cell.fresh) {
+                            cell.fresh = false;
+                        }
+                    }
+                }
+            }
+
+
+
+
+            function triggerGameOver(message) {
+                gameOver = true;
+                locked = true;
+                selected = null;
+                render();
+                overTextEl.textContent = message;
+                overlayEl.classList.add("show");
+                overlayEl.setAttribute("aria-hidden", "false");
+            }
+
+            function clearGameOver() {
+                overlayEl.classList.remove("show");
+                overlayEl.setAttribute("aria-hidden", "true");
+            }
+
+            // ---------------------------
+            // Input
+            // ---------------------------
+            async function onTileClick(e) {
+                if (locked || gameOver) return;
+
+                const r = Number(e.currentTarget.dataset.r);
+                const c = Number(e.currentTarget.dataset.c);
+                const clicked = { r, c };
+
+                if (!selected) {
+                    selected = clicked;
+                    render();
+                    return;
+                }
+
+                if (selected.r === clicked.r && selected.c === clicked.c) {
+                    selected = null;
+                    render();
+                    return;
+                }
+
+                if (!isAdjacent(selected, clicked)) {
+                    selected = clicked;
+                    render();
+                    return;
+                }
+
+                locked = true;
+                const a = selected;
+                const b = clicked;
+                armFreshBombs();
+
+                swap(a, b);
+                render();
+
+                // Hyper swap priority
+                if (await resolveHyperSwap(a, b)) {
+                    moves++;
+                    // Decrement bombs after a completed move
+                    if (!decrementBombsOrGameOver()) { locked = true; return; }
+                    render();
+                    selected = null;
+                    locked = false;
+                    return;
+                }
+
+                // Validate normal match
+                if (!hasAnyMatches()) {
+                    markInvalidSwap(a, b);
+                    await new Promise(res => setTimeout(res, 120));
+                    swap(a, b);
+                    selected = null;
+                    render();
+                    locked = false;
+                    return;
+                }
+
+                moves++;
+                selected = null;
+                render();
+
+                // Prefer special spawn at the second-clicked tile
+                await resolveBoard(b);
+
+                // Bomb countdown tick after the move is fully resolved
+                if (!decrementBombsOrGameOver()) { locked = true; return; }
+
+                render();
+                locked = false;
+            }
+
+            // ---------------------------
+            // Initialization
+            // ---------------------------
+            function generateBoard() {
+                grid = Array.from({ length: ROWS }, () =>
+                    Array.from({ length: COLS }, () => makeCell(randColor(), SPECIAL.NONE, null))
+                );
+
+                // Remove initial matches
+                let safety = 0;
+                while (safety++ < 50) {
+                    if (!hasAnyMatches()) break;
+                    const groups = getMatchGroups();
+                    for (const g of groups) {
+                        for (const p of g.cells) {
+                            grid[p.r][p.c] = makeCell(randColor(), SPECIAL.NONE, null);
+                        }
+                    }
+                }
+            }
+
+            async function newGame() {
+                clearGameOver();
+                gameOver = false;
+                locked = true;
+                selected = null;
+                score = 0;
+                moves = 0;
+                combo = 0;
+
+                generateBoard();
+                render();
+                await resolveBoard(null); // stabilize
+                locked = false;
+                showToast("New game!");
+            }
+
+            newGameBtn.addEventListener("click", newGame);
+            playAgainBtn.addEventListener("click", newGame);
+
+            buildDOM();
+            newGame();
+        })();
+    </script>
+</body>
+
+</html>
